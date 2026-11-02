@@ -1,0 +1,14 @@
+# Cloudflare Worker 配置。部署：npx wrangler login（首次）→ npx wrangler deploy
+name = "xiangqi"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# 所有玩家连到同一个 Durable Object，里面保存房间和匹配队列
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "LobbyObject"
+
+# 免费套餐只能用 SQLite 存储的 Durable Object
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LobbyObject"]

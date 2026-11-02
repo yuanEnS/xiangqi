@@ -6,8 +6,20 @@ class Net {
     this.socket = null;
     this.open = false;
     this.queue = [];
+    this.pingTimer = null;
     this.onMessage = () => {};
     this.onClose = () => {};
+  }
+
+  // 定时发心跳：服务器据此判断谁还在线，排队匹配时不会配到已经掉线的人
+  startPing() {
+    this.stopPing();
+    this.pingTimer = setInterval(() => this.send({ t: 'ping' }), 20000);
+  }
+
+  stopPing() {
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingTimer = null;
   }
 
   connect() {
@@ -16,6 +28,7 @@ class Net {
     this.socket = socket;
     socket.onOpen(() => {
       this.open = true;
+      this.startPing();
       for (const msg of this.queue) socket.send({ data: JSON.stringify(msg) });
       this.queue = [];
     });
@@ -30,6 +43,7 @@ class Net {
     });
     const closed = () => {
       if (this.socket !== socket) return;
+      this.stopPing();
       this.socket = null;
       this.open = false;
       this.queue = [];
@@ -47,6 +61,7 @@ class Net {
   }
 
   close() {
+    this.stopPing();
     const socket = this.socket;
     this.socket = null;
     this.open = false;

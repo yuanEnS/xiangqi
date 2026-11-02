@@ -76,12 +76,15 @@ function glyph(piece) {
 // ---------- 状态 ----------
 const net = new Net();
 const state = {
-  scene: 'menu', // menu | aiSetup | connecting | waiting | playing
+  scene: 'menu', // menu | aiSetup | matching | connecting | waiting | playing
   mode: null, // online | ai | local
   aiThinking: false,
   aiToken: 0, // 每次开局、悔棋、离开都加一，丢弃过时的电脑走法
   themeOpen: false, // 主题页盖在当前画面上，不打断联网对局
   roomCode: '',
+  matched: false, // 这一局是自动匹配来的（不是好友房间）
+  matchStart: 0,
+  matchOnline: 0,
   myColor: 'r',
   game: new Game(),
   selected: null,
@@ -127,10 +130,15 @@ net.onMessage = msg => {
       state.scene = 'waiting';
       state.roomCode = msg.room;
       break;
+    case 'matching':
+      state.scene = 'matching';
+      state.matchOnline = msg.online;
+      break;
     case 'start':
       state.mode = 'online';
       state.scene = 'playing';
       state.roomCode = msg.room;
+      state.matched = !!msg.matched;
       state.myColor = msg.color;
       state.game = new Game();
       state.awaitingServer = false;
@@ -138,7 +146,7 @@ net.onMessage = msg => {
       state.opponentWantsRematch = false;
       state.opponentLeft = false;
       clearSelection();
-      toast(`开局！你执${colorName(msg.color)}`);
+      toast(`${msg.matched ? '匹配成功' : '开局'}！你执${colorName(msg.color)}`);
       break;
     case 'move':
       state.game.move(msg.from, msg.to);
@@ -181,6 +189,14 @@ net.onClose = () => {
   toast('连接服务器失败或已断开');
   goMenu();
 };
+
+function startMatch() {
+  state.scene = 'matching';
+  state.matchStart = Date.now();
+  state.matchOnline = 0;
+  net.send({ t: 'match' });
+  render();
+}
 
 function createRoom() {
   state.scene = 'connecting';
@@ -479,19 +495,22 @@ function drawHome() {
   text('象棋对战', 60, titleY, 22, theme.ui.primary, { bold: true, align: 'left' });
 
   const entries = [
+    { piece: 'P', title: '快速匹配', sub: '自动匹配正在找棋友的人', onTap: startMatch, online: true },
     { piece: 'K', title: '创建房间', sub: '生成房间号，邀请好友联网对战', onTap: createRoom, online: true },
     { piece: 'n', title: '加入房间', sub: '输入好友发来的房间号', onTap: joinRoom, online: true },
     { piece: 'R', title: '人机对战', sub: '和电脑下棋 · 入门 / 业余 / 大师', onTap: openAiSetup },
     { piece: 'C', title: '本地双人', sub: '同一台设备，轮流走棋', onTap: startLocal },
     { piece: 'b', title: '棋盘主题', sub: THEMES.map(t => t.name).join(' · '), onTap: openThemes },
   ].filter(entry => SERVER_URL || !entry.online); // 没配服务器（比如网页版）就不显示联网入口
-  const x = 16, w = W - 32, h = 80;
+  // 入口多的时候卡片矮一点，小屏手机也放得下
+  const x = 16, w = W - 32;
+  const h = Math.max(64, Math.min(80, (H - contentTop - 20) / entries.length - 14));
   let y = contentTop + 10;
   for (const entry of entries) {
     card(x, y, w, h);
     drawPiece(ctx, theme, entry.piece, x + 40, y + h / 2, 22, glyph(entry.piece), false);
-    text(entry.title, x + 76, y + 30, 20, theme.ui.primary, { bold: true, align: 'left' });
-    text(entry.sub, x + 76, y + 56, 13, theme.ui.muted, { align: 'left' });
+    text(entry.title, x + 76, y + h / 2 - 11, 20, theme.ui.primary, { bold: true, align: 'left' });
+    text(entry.sub, x + 76, y + h / 2 + 15, 13, theme.ui.muted, { align: 'left' });
     hit(x, y, w, h, entry.onTap);
     y += h + 14;
   }
@@ -540,6 +559,29 @@ function drawAiSetup() {
 
   y += 72;
   button('开始对局', x, y, w, 50, startAi);
+}
+
+function drawMatching() {
+  drawDecor();
+  header('快速匹配', goMenu);
+  const ui = theme.ui;
+  const elapsed = (Date.now() - state.matchStart) / 1000;
+  const cx = W / 2, cy = contentTop + 130;
+
+  // 中间一枚棋子，外面一圈转动的弧线
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = ui.primary;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 58, elapsed * 3, elapsed * 3 + Math.PI * 1.3);
+  ctx.stroke();
+  drawPiece(ctx, theme, 'K', cx, cy, 42, glyph('K'), false);
+
+  const dots = '.'.repeat(Math.floor(elapsed * 2) % 4);
+  text(`正在寻找对手${dots}`, cx, cy + 100, 20, ui.text, { bold: true });
+  text(`已等待 ${Math.floor(elapsed)} 秒`, cx, cy + 132, 15, ui.muted);
+  if (state.matchOnline) text(`当前在线 ${state.matchOnline} 人`, cx, cy + 156, 15, ui.muted);
+  text('人少的时候，可以把网址发给朋友一起点「快速匹配」', cx, cy + 196, 13, ui.muted);
+  button('取消', (W - 160) / 2, cy + 230, 160, 44, goMenu, true);
 }
 
 function drawConnecting() {
@@ -596,7 +638,7 @@ function playerBar(y, side) {
   } else if (state.mode === 'online') {
     const mine = side === state.myColor;
     name = mine ? '我' : '对手';
-    sub = `执${colorName(side)}${mine ? '' : ` · 房间 ${state.roomCode}`}`;
+    sub = `执${colorName(side)}${mine ? '' : state.matched ? ' · 随机匹配' : ` · 房间 ${state.roomCode}`}`;
   } else {
     name = `${colorName(side)}方`;
     sub = '本地双人';
@@ -800,9 +842,23 @@ function render() {
   if (state.themeOpen) drawThemes();
   else if (state.scene === 'menu') drawHome();
   else if (state.scene === 'aiSetup') drawAiSetup();
+  else if (state.scene === 'matching') drawMatching();
   else if (state.scene === 'connecting') drawConnecting();
   else if (state.scene === 'waiting') drawWaiting();
   else drawPlaying();
+  updateMatchTimer();
+}
+
+// 匹配画面有动画，需要定时重画；离开匹配画面就停掉
+let matchTimer = null;
+function updateMatchTimer() {
+  const animating = state.scene === 'matching' && !state.themeOpen;
+  if (animating && !matchTimer) {
+    matchTimer = setInterval(render, 100);
+  } else if (!animating && matchTimer) {
+    clearInterval(matchTimer);
+    matchTimer = null;
+  }
 }
 
 render();

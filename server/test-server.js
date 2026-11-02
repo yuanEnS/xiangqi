@@ -1,12 +1,17 @@
-// 服务器自测：启动服务器，模拟两个玩家建房、加入、走棋、非法走棋、认输、再来一局
+// 服务器自测：模拟玩家自动匹配、建房、加入、走棋、非法走棋、认输、再来一局、断线
+// 默认启动本机的 Node 服务器来测；设置 SERVER_URL 可以测别的服务器，比如：
+//   SERVER_URL=ws://127.0.0.1:8787 node test-server.js   （本地运行的 Cloudflare Worker）
 const { spawn } = require('child_process');
 const WebSocket = require('ws');
 
 const PORT = 18080;
-const server = spawn(process.execPath, [__dirname + '/server.js'], { env: { ...process.env, PORT } });
+const URL = process.env.SERVER_URL || `ws://127.0.0.1:${PORT}`;
+const server = process.env.SERVER_URL
+  ? null
+  : spawn(process.execPath, [__dirname + '/server.js'], { env: { ...process.env, PORT } });
 
 function client() {
-  const ws = new WebSocket(`ws://127.0.0.1:${PORT}`);
+  const ws = new WebSocket(URL);
   const inbox = [];
   const waiters = [];
   ws.on('message', d => {
@@ -35,8 +40,39 @@ function check(cond, label) {
   if (!cond) process.exitCode = 1;
 }
 
+function stop() {
+  if (server) server.kill();
+}
+
 (async () => {
-  await new Promise(r => server.stdout.once('data', r));
+  if (server) await new Promise(r => server.stdout.once('data', r));
+
+  // 自动匹配：第一个人排队，第二个人进来就配对
+  const m1 = client(), m2 = client(), m3 = client();
+  await Promise.all([m1.open(), m2.open(), m3.open()]);
+  m1.send({ t: 'match' });
+  const waiting = await m1.next('matching');
+  check(waiting.online >= 1, `第一个人进入匹配队列（在线 ${waiting.online} 人）`);
+  m2.send({ t: 'match' });
+  const [s1, s2] = await Promise.all([m1.next('start'), m2.next('start')]);
+  check(s1.matched && s2.matched && s1.color !== s2.color && s1.room === s2.room, `匹配成功：${s1.color} 对 ${s2.color}`);
+  m3.send({ t: 'match' });
+  await m3.next('matching');
+  m3.ws.close();
+  await new Promise(r => setTimeout(r, 200));
+  const m4 = client();
+  await m4.open();
+  m4.send({ t: 'match' });
+  await m4.next('matching');
+  check(true, '排队的人断线后被移出队列，新来的人重新排队');
+  m4.send({ t: 'cancel_match' });
+  const m5 = client();
+  await m5.open();
+  m5.send({ t: 'match' });
+  await m5.next('matching');
+  check(true, '取消匹配后不会再被配对');
+  for (const c of [m1, m2, m4, m5]) c.ws.close();
+
   const a = client(), b = client();
   await Promise.all([a.open(), b.open()]);
 
@@ -80,9 +116,9 @@ function check(cond, label) {
 
   a.ws.close();
   b.ws.close();
-  server.kill();
+  stop();
 })().catch(err => {
   console.error(err);
-  server.kill();
+  stop();
   process.exit(1);
 });

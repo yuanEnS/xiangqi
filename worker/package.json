@@ -1,0 +1,13 @@
+{
+  "name": "xiangqi-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "联网中国象棋服务器（Cloudflare Workers 版，给网页版用）",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.156.2"
+  }
+}

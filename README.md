@@ -1,9 +1,11 @@
 # 中国象棋 · 微信小游戏 + 网页版
 
-同一套代码，两个版本：**微信小游戏**（支持联网对战）和**网页版**（打开网址就能玩，用 GitHub Pages 免费托管）。
+同一套代码，两个版本：**微信小游戏**和**网页版**（打开网址就能玩，用 GitHub Pages 免费托管）。两个版本都支持人机对战、本地双人，以及联网对战（快速匹配 + 好友房间）。
+
+在线试玩：<https://yuanens.github.io/xiangqi/>
 
 ```
-Myapp/
+xiangqi/
 ├── minigame/            微信小游戏（用微信开发者工具打开这个目录）
 │   ├── game.js          入口
 │   ├── game.json / project.config.json
@@ -16,7 +18,9 @@ Myapp/
 │       ├── ai.js        人机对战引擎（Alpha-Beta 搜索）
 │       ├── net.js       WebSocket 封装
 │       └── config.js    服务器地址 ← 需要改成你电脑的 IP
-├── server/              Node.js 房间服务器（校验每一步棋，转发给对手）
+├── server/              联网服务器（Node.js 版，小游戏开发时在本机运行）
+│   └── lobby.js         房间和自动匹配逻辑（Node 版和 Worker 版共用）
+├── worker/              联网服务器（Cloudflare Workers 版，给网页版用，免费）
 ├── web/                 网页版（复用 minigame/ 的代码）
 │   ├── index.html       页面
 │   ├── wx-adapter.js    用浏览器 API 实现 wx 接口
@@ -27,7 +31,7 @@ Myapp/
 └── .github/workflows/pages.yml  推送后自动部署网页版
 ```
 
-功能：创建或加入 4 位房间号、完整走子规则（蹩马腿、塞象眼、炮架、将帅照面、绝杀和困毙判定）、执黑时棋盘自动翻转、认输、再来一局（自动交换红黑）、对手断线通知、本地双人（带悔棋）。
+功能：**快速匹配**（系统自动给正在找棋友的人配对）、创建或加入 4 位房间号、完整走子规则（蹩马腿、塞象眼、炮架、将帅照面、绝杀和困毙判定）、执黑时棋盘自动翻转、认输、再来一局（自动交换红黑）、对手断线通知、本地双人（带悔棋）。
 
 **人机对战**：三档难度，入门（只算两步，常有失误）、业余（算三步）、大师（全力计算，每步限时 2.5 秒）。可以选执红、执黑或随机，支持悔棋（退回到自己走）和「提示」（按业余水平给出一步建议，在棋盘上标出来）。电脑在手机主线程上计算，大师档每步会有一两秒的「思考中」。
 
@@ -52,7 +56,7 @@ python3 tools/subset-font.py 你下载的/LXGWWenKai-Medium.ttf
 
 ## 网页版
 
-网页版包含人机对战、本地双人和所有主题。游戏逻辑都在 `minigame/js/` 里，只改那里就行，网页版打包时会自动带上。
+网页版包含人机对战、本地双人和所有主题；部署了联网服务器后，还有快速匹配和好友房间。游戏逻辑都在 `minigame/js/` 里，只改那里就行，网页版打包时会自动带上。
 
 ### 本地运行
 
@@ -77,9 +81,47 @@ python3 -m http.server 8000
 2. 打开仓库的 **Settings → Pages**，把 **Source** 设为 **GitHub Actions**。
 3. 以后每次推送到 `main`，都会自动运行规则测试、打包，并发布到 `https://你的用户名.github.io/xiangqi/`。进度可以在 Actions 页面看。
 
-### 网页版要联网对战
+### 开启网页版联网对战（Cloudflare Workers，免费）
 
-GitHub Pages 是 https 页面，浏览器只允许它连接 `wss://`（加密）地址。所以要先把 `server/` 部署到带 HTTPS 证书的服务器上，再把地址填进 `web/config.js`。不填的话，首页不显示联网入口。
+GitHub Pages 只能放静态网页，联网对战还需要一个 `wss://` 服务器。`worker/` 就是这个服务器，部署到 Cloudflare Workers 的免费套餐上：不会休眠，也不用自己买服务器。
+
+1. 注册一个 [Cloudflare](https://dash.cloudflare.com/sign-up) 免费账号。
+2. 部署（第一次会打开浏览器让你登录授权）：
+
+   ```bash
+   cd worker && npm install && npx wrangler login && npx wrangler deploy
+   ```
+
+   部署完成后会输出一个地址，形如 `https://xiangqi.你的子域名.workers.dev`。
+3. 把这个地址的 `https://` 换成 `wss://`，填进 `web/config.js`：
+
+   ```js
+   SERVER_URL: 'wss://xiangqi.你的子域名.workers.dev',
+   ```
+
+4. 提交并推送。GitHub Pages 更新后，首页就会出现「快速匹配」「创建房间」「加入房间」。
+
+在浏览器里打开 Worker 地址，看到「象棋联网服务器运行中」就说明部署成功了。
+
+**本地调试**：
+
+```bash
+cd worker && npm run dev
+```
+
+```bash
+SERVER_URL=ws://127.0.0.1:8787 node web/build.js
+```
+
+测试完记得再运行一次不带 `SERVER_URL` 的 `node web/build.js`。服务器自测也可以直接跑在 Worker 上：
+
+```bash
+cd server && SERVER_URL=ws://127.0.0.1:8787 node test-server.js
+```
+
+**说明**：
+- 所有玩家连到同一个 Durable Object，房间和匹配队列都保存在内存里。Cloudflare 更新部署或重启这个对象时，正在进行的对局会断开。
+- 国内访问 `workers.dev` 不稳定。想让国内玩家稳定连上，需要给 Worker 绑定一个自己的域名。
 
 ## 小游戏 · 一、准备（免费）
 

@@ -20,7 +20,11 @@ function resolve(fromId, request) {
 const modules = new Map();
 function addModule(id) {
   if (modules.has(id)) return;
-  const source = fs.readFileSync(OVERRIDES[id] || path.join(gameRoot, id), 'utf8');
+  let source = fs.readFileSync(OVERRIDES[id] || path.join(gameRoot, id), 'utf8');
+  // 本地测试可以临时指定服务器：SERVER_URL=ws://127.0.0.1:8787 node web/build.js
+  if (id === 'js/config.js' && process.env.SERVER_URL) {
+    source = `module.exports = { SERVER_URL: ${JSON.stringify(process.env.SERVER_URL)} };`;
+  }
   modules.set(id, source);
   for (const match of source.matchAll(/require\(\s*['"](\.[^'"]+)['"]\s*\)/g)) addModule(resolve(id, match[1]));
 }
