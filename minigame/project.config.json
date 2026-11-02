@@ -1,0 +1,12 @@
+{
+  "description": "联网中国象棋微信小游戏",
+  "compileType": "game",
+  "appid": "touristappid",
+  "projectname": "xiangqi",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "minified": true
+  }
+}

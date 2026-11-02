@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>象棋小游戏预览</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #F3E3C3; overflow: hidden; }
+  canvas { display: block; touch-action: none; }
+  #toast { position: fixed; left: 50%; top: 45%; transform: translateX(-50%); padding: 10px 18px;
+    background: rgba(0,0,0,0.75); color: #fff; border-radius: 8px; font: 15px sans-serif; display: none; z-index: 20; }
+  .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 10; font: 16px sans-serif; }
+  .mask.sheet { align-items: flex-end; }
+  .dlg { background: #fff; border-radius: 12px; width: min(300px, calc(100% - 48px)); padding: 20px 16px 12px; box-sizing: border-box; text-align: center; }
+  .sheet .dlg { width: 100%; border-radius: 12px 12px 0 0; padding: 8px 0; }
+  .dlg-title { font-weight: bold; margin-bottom: 8px; }
+  .dlg-text { color: #555; font-size: 15px; margin-bottom: 12px; }
+  .dlg-input { width: 100%; box-sizing: border-box; font-size: 18px; padding: 8px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; }
+  .dlg-row { display: flex; gap: 10px; }
+  .dlg-row button { flex: 1; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; background: #fff; }
+  .dlg-row button.primary { background: #07C160; border-color: #07C160; color: #fff; }
+  .sheet-item { display: block; width: 100%; padding: 14px; font-size: 17px; border: none; border-top: 1px solid #eee; background: #fff; }
+  .sheet-item:first-child { border-top: none; }
+</style>
+</head>
+<body>
+<canvas id="screen"></canvas>
+<div id="toast"></div>
+<!-- 微信右上角胶囊按钮的占位，方便检查布局有没有被挡住 -->
+<div style="position:fixed;top:24px;right:8px;width:87px;height:32px;border-radius:16px;border:1px solid rgba(0,0,0,0.15);background:rgba(255,255,255,0.6);pointer-events:none"></div>
+<script>
+// 浏览器调试用：模拟小游戏用到的几个 wx 接口，再用极简 CommonJS 加载器运行 minigame/game.js。
+// 正式运行请用微信开发者工具打开 minigame 目录。
+(function () {
+  const screen = document.getElementById('screen');
+  let created = false;
+  let toastTimer;
+  const loadedFonts = {};
+
+  function openDialog(sheet) {
+    closeDialog();
+    const mask = document.createElement('div');
+    mask.id = 'dialog';
+    mask.className = sheet ? 'mask sheet' : 'mask';
+    const box = document.createElement('div');
+    box.className = 'dlg';
+    mask.appendChild(box);
+    document.body.appendChild(mask);
+    return box;
+  }
+
+  function closeDialog() {
+    const old = document.getElementById('dialog');
+    if (old) old.remove();
+  }
+
+  window.wx = {
+    getWindowInfo() {
+      return { windowWidth: innerWidth, windowHeight: innerHeight, pixelRatio: devicePixelRatio, statusBarHeight: 20 };
+    },
+    createCanvas() {
+      if (created) return document.createElement('canvas');
+      created = true;
+      screen.style.width = innerWidth + 'px';
+      screen.style.height = innerHeight + 'px';
+      return screen;
+    },
+    onTouchStart(cb) {
+      screen.addEventListener('pointerdown', e => {
+        const t = { clientX: e.clientX, clientY: e.clientY };
+        cb({ touches: [t], changedTouches: [t] });
+      });
+    },
+    showToast({ title }) {
+      const el = document.getElementById('toast');
+      el.textContent = title;
+      el.style.display = 'block';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.style.display = 'none'; }, 1500);
+    },
+    hideToast() {
+      document.getElementById('toast').style.display = 'none';
+    },
+    // 小游戏里 loadFont 是同步的；浏览器里字体在加载游戏前预先载入（见文件末尾）
+    loadFont(path) {
+      return loadedFonts[path] || null;
+    },
+    // 弹窗用页面元素实现（有些内嵌浏览器不支持 prompt/confirm）
+    showModal({ title, content, editable, placeholderText, success }) {
+      const box = openDialog();
+      box.innerHTML = `<div class="dlg-title"></div><div class="dlg-text"></div>
+        ${editable ? '<input class="dlg-input">' : ''}
+        <div class="dlg-row"><button data-ok="0">取消</button><button data-ok="1" class="primary">确定</button></div>`;
+      box.querySelector('.dlg-title').textContent = title || '';
+      box.querySelector('.dlg-text').textContent = content || '';
+      const input = box.querySelector('.dlg-input');
+      if (input) {
+        input.placeholder = placeholderText || '';
+        setTimeout(() => input.focus());
+      }
+      box.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+        closeDialog();
+        const confirm = btn.dataset.ok === '1';
+        success && success({ confirm, cancel: !confirm, content: input ? input.value : '' });
+      }));
+    },
+    showActionSheet({ itemList, success }) {
+      const box = openDialog(true);
+      itemList.concat('取消').forEach((label, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'sheet-item';
+        btn.textContent = label;
+        btn.addEventListener('click', () => {
+          closeDialog();
+          if (i < itemList.length) success && success({ tapIndex: i });
+        });
+        box.appendChild(btn);
+      });
+    },
+    // 模拟右上角的微信胶囊按钮
+    getMenuButtonBoundingClientRect() {
+      return { top: 24, bottom: 56, left: innerWidth - 95, right: innerWidth - 8, width: 87, height: 32 };
+    },
+    getStorageSync(key) {
+      try {
+        const raw = localStorage.getItem('wx:' + key);
+        return raw ? JSON.parse(raw) : '';
+      } catch (e) {
+        return '';
+      }
+    },
+    setStorageSync(key, value) {
+      try {
+        localStorage.setItem('wx:' + key, JSON.stringify(value));
+      } catch (e) {}
+    },
+    connectSocket({ url }) {
+      const ws = new WebSocket(url);
+      return {
+        onOpen: cb => { ws.onopen = cb; },
+        onMessage: cb => { ws.onmessage = e => cb({ data: e.data }); },
+        onClose: cb => { ws.onclose = cb; },
+        onError: cb => { ws.onerror = cb; },
+        send: ({ data }) => ws.send(data),
+        close: () => ws.close(),
+      };
+    },
+  };
+
+  const cache = {};
+  function load(path) {
+    if (cache[path]) return cache[path].exports;
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', path, false);
+    xhr.send();
+    if (xhr.status !== 200) throw new Error('加载失败：' + path);
+    const module = { exports: {} };
+    cache[path] = module;
+    const dir = path.slice(0, path.lastIndexOf('/') + 1);
+    const require = p => load(new URL(p, location.origin + dir).pathname);
+    new Function('require', 'module', 'exports', xhr.responseText + '\n//# sourceURL=' + path)(require, module, module.exports);
+    return module.exports;
+  }
+  const kai = new FontFace('KaiSubset', 'url(/minigame/fonts/kai.ttf)');
+  kai.load()
+    .then(face => {
+      document.fonts.add(face);
+      loadedFonts['fonts/kai.ttf'] = 'KaiSubset';
+    })
+    .catch(() => {})
+    .then(() => load('/minigame/game.js'));
+})();
+</script>
+</body>
+</html>
