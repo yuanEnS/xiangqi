@@ -30,10 +30,10 @@ jobs:
       - name: 规则测试
         run: node server/test-rules.js
       - name: 打包网页版
-        run: node web/build.js
+        run: node web/build.js xiangqi _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

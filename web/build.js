@@ -1,14 +1,29 @@
-// 把小游戏的代码打包成网页能直接加载的一个文件：web/dist/game.js
-// 用法：node web/build.js（GitHub Actions 部署时也会自动运行）
+// 把小游戏的代码打包成网页能直接加载的一个文件
+// 用法：
+//   node web/build.js                    打包象棋到 web/dist/，本地预览 web/index.html 用
+//   node web/build.js xiangqi _site      生成完整的象棋网站到 _site/（GitHub Actions 部署用）
+//   node web/build.js gomoku ../yuanEnS.github.io/wuziqi   生成五子棋网站（gamesyuan.com/wuziqi/）
 const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const gameRoot = path.join(root, 'minigame');
-const dist = path.join(__dirname, 'dist');
 
-// 网页版用自己的配置（服务器地址）替换小游戏的 config.js
-const OVERRIDES = { 'js/config.js': path.join(__dirname, 'config.js') };
+// 每个网页只放一个游戏；pages 是要复制的页面：{ 输出文件名: web/ 下的源文件 }
+const SITES = {
+  xiangqi: { pages: { 'index.html': 'index.html', 'rules.html': 'rules.html' } },
+  gomoku: { pages: { 'index.html': 'pages/wuziqi.html' } },
+};
+const [game = 'xiangqi', outArg] = process.argv.slice(2);
+if (!SITES[game]) throw new Error(`不认识的游戏：${game}（可选 ${Object.keys(SITES).join(' / ')}）`);
+const out = outArg ? path.resolve(outArg) : null;
+const dist = out ? path.join(out, 'dist') : path.join(__dirname, 'dist');
+
+// 网页版用自己的配置替换小游戏的 config.js：服务器地址来自 web/config.js，游戏列表只有这一个
+// 本地测试可以临时指定服务器：SERVER_URL=ws://127.0.0.1:8787 node web/build.js
+const webConfig = require('./config.js');
+const serverUrl = process.env.SERVER_URL || webConfig.SERVER_URL;
+const CONFIG_SOURCE = `module.exports = ${JSON.stringify({ SERVER_URL: serverUrl, GAMES: [game] })};`;
 
 function resolve(fromId, request) {
   let id = path.posix.normalize(path.posix.join(path.posix.dirname(fromId), request));
@@ -20,11 +35,7 @@ function resolve(fromId, request) {
 const modules = new Map();
 function addModule(id) {
   if (modules.has(id)) return;
-  let source = fs.readFileSync(OVERRIDES[id] || path.join(gameRoot, id), 'utf8');
-  // 本地测试可以临时指定服务器：SERVER_URL=ws://127.0.0.1:8787 node web/build.js
-  if (id === 'js/config.js' && process.env.SERVER_URL) {
-    source = `module.exports = { SERVER_URL: ${JSON.stringify(process.env.SERVER_URL)} };`;
-  }
+  const source = id === 'js/config.js' ? CONFIG_SOURCE : fs.readFileSync(path.join(gameRoot, id), 'utf8');
   modules.set(id, source);
   for (const match of source.matchAll(/require\(\s*['"](\.[^'"]+)['"]\s*\)/g)) addModule(resolve(id, match[1]));
 }
@@ -65,4 +76,8 @@ fs.writeFileSync(path.join(dist, 'game.js'), bundle);
 for (const file of ['kai.ttf', 'piece.ttf', 'OFL.txt']) {
   fs.copyFileSync(path.join(gameRoot, 'fonts', file), path.join(dist, 'fonts', file));
 }
-console.log(`打包完成：${modules.size} 个模块 → web/dist/game.js（${Math.round(bundle.length / 1024)} KB）`);
+if (out) {
+  const files = { ...SITES[game].pages, 'wx-adapter.js': 'wx-adapter.js', 'favicon.svg': 'favicon.svg' };
+  for (const [to, from] of Object.entries(files)) fs.copyFileSync(path.join(__dirname, from), path.join(out, to));
+}
+console.log(`打包完成：${game}，${modules.size} 个模块 → ${path.relative(process.cwd(), dist) || '.'}/game.js（${Math.round(bundle.length / 1024)} KB）`);

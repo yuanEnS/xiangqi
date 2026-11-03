@@ -16,6 +16,10 @@ const THEMES = [
       b: { fill: '#262019', light: '#5C5247', text: '#FFF4E4', ring: 'rgba(255,238,215,0.6)' },
       edge: 'rgba(0,0,0,0.35)', edgeWidth: 1, shadow: true, gradient: true,
     },
+    stones: {
+      b: { fill: '#1C1A17', light: '#5C574F', edge: null },
+      w: { fill: '#E9E3D6', light: '#FFFFFF', edge: 'rgba(90,60,30,0.35)' },
+    },
     mark: { select: '#1565C0', hint: 'rgba(21,101,192,0.9)', last: '#1565C0' },
   },
   {
@@ -30,6 +34,10 @@ const THEMES = [
       b: { fill: '#1F2E27', light: '#44564C', text: '#E8F0E6', ring: 'rgba(232,240,230,0.6)' },
       edge: 'rgba(30,50,40,0.45)', edgeWidth: 1, shadow: true, gradient: true,
     },
+    stones: {
+      b: { fill: '#1F2622', light: '#55605A', edge: null },
+      w: { fill: '#F2EFE6', light: '#FFFFFF', edge: 'rgba(40,70,55,0.35)' },
+    },
     mark: { select: '#C77700', hint: 'rgba(199,119,0,0.9)', last: '#C77700' },
   },
   {
@@ -42,6 +50,10 @@ const THEMES = [
       r: { fill: '#C0392B', light: '#C0392B', text: '#FFFFFF', ring: 'rgba(255,255,255,0.7)' },
       b: { fill: '#2D2A26', light: '#2D2A26', text: '#FFFFFF', ring: 'rgba(255,255,255,0.55)' },
       edge: 'rgba(0,0,0,0.25)', edgeWidth: 1, shadow: true, gradient: false,
+    },
+    stones: {
+      b: { fill: '#2D2A26', light: '#2D2A26', edge: null },
+      w: { fill: '#FFFFFF', light: '#FFFFFF', edge: '#8A7A62' },
     },
     mark: { select: '#1565C0', hint: 'rgba(21,101,192,0.9)', last: '#1565C0' },
   },
@@ -57,6 +69,11 @@ const THEMES = [
       b: { fill: '#D6DBE4', light: '#FFFFFF', text: '#1A1E26', ring: 'rgba(26,30,38,0.45)' },
       edge: 'rgba(0,0,0,0.5)', edgeWidth: 1, shadow: true, gradient: true,
     },
+    stones: {
+      // 深色棋盘上黑子加一圈浅色描边
+      b: { fill: '#0B0D12', light: '#3A4050', edge: 'rgba(230,233,239,0.45)' },
+      w: { fill: '#D6DBE4', light: '#FFFFFF', edge: null },
+    },
     mark: { select: '#FFC857', hint: 'rgba(255,200,87,0.95)', last: '#FFC857' },
   },
   {
@@ -69,6 +86,11 @@ const THEMES = [
       r: { fill: '#FFFFFF', light: '#FFFFFF', text: '#000000', ring: '#000000' },
       b: { fill: '#000000', light: '#000000', text: '#FFFFFF', ring: '#FFFFFF' },
       edge: '#000000', edgeWidth: 2, shadow: false, gradient: false,
+    },
+    stones: {
+      edgeWidth: 2,
+      b: { fill: '#000000', light: '#000000', edge: '#000000' },
+      w: { fill: '#FFFFFF', light: '#FFFFFF', edge: '#000000' },
     },
     mark: { select: '#000000', hint: '#000000', last: '#000000' },
   },

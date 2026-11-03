@@ -2,12 +2,13 @@
   "name": "xiangqi-server",
   "version": "1.0.0",
   "private": true,
-  "description": "联网中国象棋 WebSocket 服务器",
+  "description": "联网象棋、五子棋 WebSocket 服务器",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test": "node test-rules.js && node test-server.js",
-    "test:ai": "node test-ai.js"
+    "test:ai": "node test-ai.js",
+    "test:gomoku": "node test-gomoku.js"
   },
   "dependencies": {
     "ws": "^8.22.1"

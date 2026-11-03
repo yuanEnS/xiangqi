@@ -116,6 +116,47 @@ function stop() {
 
   a.ws.close();
   b.ws.close();
+
+  // 五子棋：和象棋分开排队，房间互不串门，五连判胜
+  const g1 = client(), g2 = client(), x1 = client();
+  await Promise.all([g1.open(), g2.open(), x1.open()]);
+  x1.send({ t: 'match' });
+  await x1.next('matching');
+  g1.send({ t: 'match', game: 'gomoku' });
+  await g1.next('matching');
+  check(true, '五子棋和象棋分开排队，不会配到一起');
+  x1.ws.close();
+
+  g2.send({ t: 'create', game: 'gomoku' });
+  const { room: groom } = await g2.next('created');
+  const x2 = client();
+  await x2.open();
+  x2.send({ t: 'join', room: groom });
+  check((await x2.next('error')).msg === '这是五子棋房间', '象棋客户端加入五子棋房间被拒绝');
+  x2.ws.close();
+
+  g1.send({ t: 'join', room: groom, game: 'gomoku' });
+  const [ga, gb] = await Promise.all([g1.next('start'), g2.next('start')]);
+  check(['b', 'w'].includes(ga.color) && ga.color !== gb.color, `五子棋开局：${ga.color} 对 ${gb.color}`);
+  const gBlack = ga.color === 'b' ? g1 : g2;
+  const gWhite = gBlack === g1 ? g2 : g1;
+  for (let i = 0; i < 4; i++) {
+    gBlack.send({ t: 'move', at: [7, 3 + i] });
+    await Promise.all([gBlack.next('move'), gWhite.next('move')]);
+    gWhite.send({ t: 'move', at: [8, 3 + i] });
+    await Promise.all([gBlack.next('move'), gWhite.next('move')]);
+  }
+  gWhite.send({ t: 'move', at: [0, 0] });
+  check((await gWhite.next('error')).msg === '还没轮到你', '五子棋白方抢先被拒绝');
+  gBlack.send({ t: 'move', at: [8, 3] });
+  check((await gBlack.next('error')).msg === '走法不合法', '下在已有棋子的位置被拒绝');
+  gBlack.send({ t: 'move', at: [7, 7] });
+  const [gm] = await Promise.all([gWhite.next('move'), gBlack.next('move')]);
+  const gover = await gWhite.next('over');
+  check(gm.at[1] === 7 && gover.winner === 'b' && gover.reason === 'five', '黑方五连，判黑胜');
+
+  g1.ws.close();
+  g2.ws.close();
   stop();
 })().catch(err => {
   console.error(err);

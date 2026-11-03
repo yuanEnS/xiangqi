@@ -175,8 +175,8 @@ function drawPiece(ctx, theme, piece, x, y, radius, glyph, lifted) {
   }
 }
 
-// 主题页的小缩略图：一角棋盘加一红一黑两枚兵卒
-function drawThemePreview(ctx, theme, glyphs, x, y, w, h) {
+// 主题页缩略图的底：一角棋盘
+function previewBoard(ctx, theme, x, y, w, h) {
   const b = theme.board;
   ctx.save();
   roundRect(ctx, x, y, w, h, 10);
@@ -197,10 +197,91 @@ function drawThemePreview(ctx, theme, glyphs, x, y, w, h) {
   ctx.lineWidth = Math.min(4, b.frameWidth);
   roundRect(ctx, x, y, w, h, 10);
   ctx.stroke();
+}
 
+// 象棋主题缩略图：一红一黑两枚兵卒
+function drawThemePreview(ctx, theme, glyphs, x, y, w, h) {
+  previewBoard(ctx, theme, x, y, w, h);
   const radius = w * 0.2;
   drawPiece(ctx, theme, 'P', x + w * 0.38, y + h * 0.56, radius, glyphs.P, false);
   drawPiece(ctx, theme, 'p', x + w * 0.63, y + h * 0.44, radius, glyphs.p, false);
 }
 
-module.exports = { fontFamily, useFont, usePieceFont, roundRect, drawBoard, drawPiece, drawThemePreview };
+// ---------- 五子棋 ----------
+// g = { ox, oy, cell, size }：左上角交叉点坐标、格子大小、每边几路
+function drawGoBoard(ctx, theme, g) {
+  const b = theme.board;
+  const { ox, oy, cell, size } = g;
+  const span = (size - 1) * cell;
+  const px = ox - cell * 0.6, py = oy - cell * 0.6, pw = span + cell * 1.2;
+
+  fillBoardColor(ctx, b, px, py, pw, pw);
+  ctx.fillRect(px, py, pw, pw);
+  if (b.grain) drawGrain(ctx, b.grain, px, py, pw, pw);
+  drawFrame(ctx, b, px, py, pw, pw);
+
+  ctx.strokeStyle = b.line;
+  ctx.lineWidth = b.lineWidth;
+  for (let i = 0; i < size; i++) {
+    line(ctx, ox, oy + i * cell, ox + span, oy + i * cell);
+    line(ctx, ox + i * cell, oy, ox + i * cell, oy + span);
+  }
+  ctx.lineWidth = b.lineWidth * 2;
+  ctx.strokeRect(ox, oy, span, span);
+
+  // 天元和四个星位
+  ctx.fillStyle = b.line;
+  const mid = (size - 1) / 2, q = 3;
+  for (const [r, c] of [[mid, mid], [q, q], [q, size - 1 - q], [size - 1 - q, q], [size - 1 - q, size - 1 - q]]) {
+    ctx.beginPath();
+    ctx.arc(ox + c * cell, oy + r * cell, Math.max(2, cell * 0.12), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// side：'b' 黑子 | 'w' 白子；颜色来自主题的 stones
+function drawStone(ctx, theme, side, x, y, radius) {
+  const P = theme.pieces;
+  const s = theme.stones[side];
+  ctx.save();
+  if (P.shadow) {
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = radius * 0.25;
+    ctx.shadowOffsetY = radius * 0.12;
+  }
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  if (P.gradient) {
+    const grad = ctx.createRadialGradient(x - radius * 0.35, y - radius * 0.4, radius * 0.1, x, y, radius);
+    grad.addColorStop(0, s.light);
+    grad.addColorStop(1, s.fill);
+    ctx.fillStyle = grad;
+  } else {
+    ctx.fillStyle = s.fill;
+  }
+  ctx.fill();
+  ctx.restore();
+  if (s.edge) {
+    ctx.lineWidth = theme.stones.edgeWidth || 1;
+    ctx.strokeStyle = s.edge;
+    ctx.beginPath();
+    ctx.arc(x, y, radius - ctx.lineWidth / 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+// 五子棋主题缩略图：一黑一白两枚棋子
+function drawGoPreview(ctx, theme, x, y, w, h) {
+  previewBoard(ctx, theme, x, y, w, h);
+  // 棋子放在缩略图的格线交叉点上（格子边长 w / 4）
+  const step = w / 4, radius = step * 0.44;
+  drawStone(ctx, theme, 'b', x + step * 2, y + step * 2, radius);
+  drawStone(ctx, theme, 'w', x + step * 3, y + step, radius);
+  drawStone(ctx, theme, 'b', x + step, y + step, radius);
+  drawStone(ctx, theme, 'w', x + step * 3, y + step * 2, radius);
+}
+
+module.exports = {
+  fontFamily, useFont, usePieceFont, roundRect,
+  drawBoard, drawPiece, drawThemePreview, drawGoBoard, drawStone, drawGoPreview,
+};

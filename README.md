@@ -1,8 +1,11 @@
-# 中国象棋 · 微信小游戏 + 网页版
+# 游戏园：中国象棋 + 五子棋 · 微信小游戏 + 网页版
 
-同一套代码，两个版本：**微信小游戏**和**网页版**（打开网址就能玩，用 GitHub Pages 免费托管）。两个版本都支持人机对战、本地双人，以及联网对战（快速匹配 + 好友房间）。
+同一套代码，两个版本：
 
-在线试玩：<https://yuanens.github.io/xiangqi/>
+- **微信小游戏**：首页先选「中国象棋」或「五子棋」，只有人机对战和本地双人（`minigame/js/config.js` 里 `SERVER_URL` 留空，不显示联网入口）。
+- **网页版**：每个游戏一个网页，除了人机和本地双人，还有联网对战（快速匹配 + 好友房间）。
+  - 中国象棋：<https://gamesyuan.com/xiangqi/>（本仓库推送后由 GitHub Actions 自动发布）
+  - 五子棋：<https://gamesyuan.com/wuziqi/>（打包到 `yuanEnS.github.io` 仓库的 `wuziqi/` 目录里发布，见下文）
 
 ```
 xiangqi/
@@ -12,26 +15,34 @@ xiangqi/
 │   ├── fonts/kai.ttf    界面楷体（霞鹜文楷裁剪版，约 250 KB，OFL 协议）
 │   ├── fonts/piece.ttf  棋子楷体（寒蝉正楷体裁剪版，约 16 KB，OFL 协议）
 │   └── js/
-│       ├── xiangqi.js   规则引擎（服务器也用这一份）
-│       ├── main.js      界面、点击、联网流程
-│       ├── themes.js    主题配色（车、马、象、士、炮）
-│       ├── draw.js      棋盘、棋子、主题缩略图的绘制
-│       ├── ai.js        人机对战引擎（Alpha-Beta 搜索）
-│       ├── net.js       WebSocket 封装
-│       └── config.js    服务器地址 ← 需要改成你电脑的 IP
+│       ├── main.js        入口：游戏列表（只有一个游戏时直接进入）
+│       ├── ui.js          共用界面：画布布局、按钮卡片、主题页、设置、点击分发
+│       ├── xiangqi.js     象棋规则引擎（服务器也用这一份）
+│       ├── xiangqi-app.js 象棋的首页、人机设置、联网流程、对局画面
+│       ├── ai.js          象棋电脑（Alpha-Beta 搜索）
+│       ├── gomoku.js      五子棋规则（15 路，无禁手，服务器也用这一份）
+│       ├── gomoku-app.js  五子棋的首页、人机设置、联网流程、对局画面
+│       ├── gomoku-ai.js   五子棋电脑（棋形打分 + Alpha-Beta 搜索）
+│       ├── themes.js      主题配色（车、马、象、士、炮），象棋棋子和五子棋棋子的颜色
+│       ├── draw.js        棋盘、棋子、主题缩略图的绘制
+│       ├── net.js         WebSocket 封装
+│       └── config.js      服务器地址（小游戏留空）和首页列出的游戏
 ├── server/              联网服务器（Node.js 版，小游戏开发时在本机运行）
 │   └── lobby.js         房间和自动匹配逻辑（Node 版和 Worker 版共用）
 ├── worker/              联网服务器（Cloudflare Workers 版，给网页版用，免费）
 ├── web/                 网页版（复用 minigame/ 的代码）
-│   ├── index.html       页面
+│   ├── index.html       象棋页面；rules.html 象棋规则入门
+│   ├── pages/wuziqi.html 五子棋页面
 │   ├── wx-adapter.js    用浏览器 API 实现 wx 接口
-│   ├── config.js        网页版的服务器地址（默认留空 = 不显示联网）
-│   └── build.js         把 minigame/ 的代码打包成 web/dist/game.js
+│   ├── config.js        网页版的服务器地址
+│   └── build.js         把 minigame/ 的代码打包成一个游戏的网站
 ├── preview/             浏览器调试页（直接加载源码、模拟微信胶囊按钮，开发小游戏时用）
 ├── tools/subset-font.py 重新裁剪界面楷体
 ├── tools/subset-piece-font.py 重新裁剪棋子楷体
 └── .github/workflows/pages.yml  推送后自动部署网页版
 ```
+
+## 中国象棋
 
 功能：**快速匹配**（系统自动给正在找棋友的人配对）、创建或加入 4 位房间号、完整走子规则（蹩马腿、塞象眼、炮架、将帅照面、绝杀和困毙判定）、执黑时棋盘自动翻转、认输、再来一局（自动交换红黑）、对手断线通知、本地双人（带悔棋）。
 
@@ -64,6 +75,17 @@ python3 tools/subset-piece-font.py 你下载的/ChillKai.ttf
 
 在 `themes.js` 里照着已有的格式加一项，就能新增主题。
 
+## 五子棋
+
+15 路棋盘，黑先白后，横、竖、斜连成五子（或更多）获胜，不设禁手；棋盘下满算平局。
+
+- **落子要点两下**：手机上格子小，第一下放一枚半透明的预览子，确认位置后再点同一处才落下。
+- **人机对战**：入门（只顾自己，常漏看对方）、业余（会攻会守，看一步）、大师（在最好的几个点里往后搜索，每步限时 1.5 秒）。可以选执黑、执白或随机，支持悔棋和「提示」。
+- **联网对战**（网页版）：和象棋共用一个服务器，分开排队，五子棋的房间号只能用五子棋加入。
+- 五套主题都有对应的黑白子配色，黑白主题下白子带黑边。
+
+自测：`node server/test-gomoku.js`（胜负判定、电脑会成五和挡五、各档难度互相对弈）。
+
 ## 网页版
 
 网页版包含人机对战、本地双人和所有主题；部署了联网服务器后，还有快速匹配和好友房间。游戏逻辑都在 `minigame/js/` 里，只改那里就行，网页版打包时会自动带上。
@@ -73,6 +95,8 @@ python3 tools/subset-piece-font.py 你下载的/ChillKai.ttf
 ```bash
 node web/build.js
 ```
+
+（只打包象棋到 `web/dist/`，给 `web/index.html` 用。）
 
 ```bash
 python3 -m http.server 8000
@@ -90,6 +114,16 @@ python3 -m http.server 8000
 
 2. 打开仓库的 **Settings → Pages**，把 **Source** 设为 **GitHub Actions**。
 3. 以后每次推送到 `main`，都会自动运行规则测试、打包，并发布到 `https://你的用户名.github.io/xiangqi/`。进度可以在 Actions 页面看。
+
+### 发布五子棋网页
+
+五子棋发布在 `gamesyuan.com/wuziqi/`，由首页仓库 `yuanEnS.github.io` 托管。改了五子棋代码后，在本仓库运行：
+
+```bash
+node web/build.js gomoku ../yuanEnS.github.io/wuziqi
+```
+
+它会把页面、适配脚本、打包好的代码和字体写进首页仓库的 `wuziqi/` 目录，然后在首页仓库提交推送即可。
 
 ### 开启网页版联网对战（Cloudflare Workers，免费）
 
@@ -111,7 +145,7 @@ GitHub Pages 只能放静态网页，联网对战还需要一个 `wss://` 服务
 
 4. 提交并推送。GitHub Pages 更新后，首页就会出现「快速匹配」「创建房间」「加入房间」。
 
-在浏览器里打开 Worker 地址，看到「象棋联网服务器运行中」就说明部署成功了。
+在浏览器里打开 Worker 地址，看到「象棋联网服务器运行中」就说明部署成功了。象棋和五子棋共用这一个服务器，客户端连接时用 `game` 字段区分。
 
 **本地调试**：
 
@@ -152,7 +186,7 @@ npm start
 
 ## 小游戏 · 三、在开发者工具里运行
 
-1. 查电脑的局域网 IP：`ipconfig getifaddr en0`（macOS）。把结果填进 `minigame/js/config.js` 的 `SERVER_URL`，例如 `ws://192.168.1.23:8080`。
+1. 小游戏默认不显示联网入口。想在开发时测试联网：查电脑的局域网 IP（`ipconfig getifaddr en0`，macOS），临时填进 `minigame/js/config.js` 的 `SERVER_URL`，例如 `ws://192.168.1.23:8080`，测完改回 `''` 再上传。
 2. 开发者工具 →「导入项目」→ 目录选 `minigame`，AppID 填你自己的（或者先选游客或测试号）。
 3. 右上角「详情 → 本地设置」，确认已勾选 **「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」**（`project.config.json` 里已经默认打开）。
 4. 模拟器里点「创建房间」，记下房间号。

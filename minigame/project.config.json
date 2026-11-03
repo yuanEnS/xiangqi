@@ -1,12 +1,36 @@
 {
   "description": "联网中国象棋微信小游戏",
   "compileType": "game",
-  "appid": "touristappid",
+  "appid": "wxa2ad5d37763fafa8",
   "projectname": "xiangqi",
   "setting": {
     "urlCheck": false,
     "es6": true,
     "enhance": true,
-    "minified": true
-  }
+    "minified": true,
+    "postcss": false,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "isGameTourist": false,
+  "editorSetting": {}
 }
