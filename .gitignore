@@ -3,3 +3,4 @@ web/dist/
 _site/
 .DS_Store
 .claude/
+minigame/project.private.config.json
