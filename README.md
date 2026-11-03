@@ -9,7 +9,8 @@ xiangqi/
 ├── minigame/            微信小游戏（用微信开发者工具打开这个目录）
 │   ├── game.js          入口
 │   ├── game.json / project.config.json
-│   ├── fonts/kai.ttf    楷体（霞鹜文楷裁剪版，约 250 KB，OFL 协议）
+│   ├── fonts/kai.ttf    界面楷体（霞鹜文楷裁剪版，约 250 KB，OFL 协议）
+│   ├── fonts/piece.ttf  棋子楷体（寒蝉正楷体裁剪版，约 16 KB，OFL 协议）
 │   └── js/
 │       ├── xiangqi.js   规则引擎（服务器也用这一份）
 │       ├── main.js      界面、点击、联网流程
@@ -27,7 +28,8 @@ xiangqi/
 │   ├── config.js        网页版的服务器地址（默认留空 = 不显示联网）
 │   └── build.js         把 minigame/ 的代码打包成 web/dist/game.js
 ├── preview/             浏览器调试页（直接加载源码、模拟微信胶囊按钮，开发小游戏时用）
-├── tools/subset-font.py 重新裁剪楷体字体
+├── tools/subset-font.py 重新裁剪界面楷体
+├── tools/subset-piece-font.py 重新裁剪棋子楷体
 └── .github/workflows/pages.yml  推送后自动部署网页版
 ```
 
@@ -35,13 +37,21 @@ xiangqi/
 
 **人机对战**：三档难度，入门（只算两步，常有失误）、业余（算三步）、大师（全力计算，每步限时 2.5 秒）。可以选执红、执黑或随机，支持悔棋（退回到自己走）和「提示」（按业余水平给出一步建议，在棋盘上标出来）。电脑在手机主线程上计算，大师档每步会有一两秒的「思考中」。
 
-**字体**：全部文字用楷体（霞鹜文楷）。为了控制包体，只保留游戏里用到的字。**改了界面文字后**，要重新运行一次裁剪脚本，新加的字才会用楷体显示：
+**字体**：界面文字用霞鹜文楷，棋子上的字用寒蝉正楷体。为了控制包体，只保留游戏里用到的字。**改了界面文字后**，要重新运行一次裁剪脚本，新加的字才会用楷体显示：
 
 ```bash
 python3 tools/subset-font.py 你下载的/LXGWWenKai-Medium.ttf
 ```
 
 字体从 [LxgwWenKai Releases](https://github.com/lxgw/LxgwWenKai/releases) 下载。没有被裁剪进来的字，会回退到系统字体显示。
+
+棋子字体只含 `themes.js` 里 `GLYPHS` 用到的字，改了棋子用字后运行：
+
+```bash
+python3 tools/subset-piece-font.py 你下载的/ChillKai.ttf
+```
+
+字体从 [ChillKai Releases](https://github.com/Warren2060/ChillKai/releases) 下载（ChillKai.zip 里的 ChillKai.ttf）。
 
 **主题**：首页「棋盘主题」或对局里的「主题」按钮可以切换，选择会自动保存。
 

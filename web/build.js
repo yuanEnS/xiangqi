@@ -62,7 +62,7 @@ load('game.js');
 
 fs.mkdirSync(path.join(dist, 'fonts'), { recursive: true });
 fs.writeFileSync(path.join(dist, 'game.js'), bundle);
-for (const file of ['kai.ttf', 'OFL.txt']) {
+for (const file of ['kai.ttf', 'piece.ttf', 'OFL.txt']) {
   fs.copyFileSync(path.join(gameRoot, 'fonts', file), path.join(dist, 'fonts', file));
 }
 console.log(`打包完成：${modules.size} 个模块 → web/dist/game.js（${Math.round(bundle.length / 1024)} KB）`);

@@ -3,9 +3,15 @@
 // 楷体优先：打包的霞鹜文楷加载成功就用它，否则用系统自带的楷体，再不行退到宋体
 const FALLBACK = '"Kaiti SC", "STKaiti", "KaiTi", "楷体", "Songti SC", "SimSun", serif';
 let family = FALLBACK;
+// 棋子上的字单独用寒蝉正楷体，没加载成功就和界面用同一种楷体
+let pieceFamily = null;
 
 function useFont(name) {
   family = `"${name}", ${FALLBACK}`;
+}
+
+function usePieceFont(name) {
+  pieceFamily = name;
 }
 
 function fontFamily() {
@@ -156,10 +162,17 @@ function drawPiece(ctx, theme, piece, x, y, radius, glyph, lifted) {
   ctx.stroke();
 
   ctx.fillStyle = s.text;
-  ctx.font = `${Math.round(radius * 1.15)}px ${family}`;
+  ctx.font = pieceFamily ? `${Math.round(radius * 1.3)}px "${pieceFamily}", ${family}` : `${Math.round(radius * 1.15)}px ${family}`;
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(glyph, x, y + radius * 0.05);
+  // 按字的实际轮廓上下居中；不支持轮廓测量的环境退回按基线居中
+  ctx.textBaseline = 'alphabetic';
+  const m = ctx.measureText(glyph);
+  if (m.actualBoundingBoxAscent !== undefined) {
+    ctx.fillText(glyph, x, y + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
+  } else {
+    ctx.textBaseline = 'middle';
+    ctx.fillText(glyph, x, y + radius * 0.05);
+  }
 }
 
 // 主题页的小缩略图：一角棋盘加一红一黑两枚兵卒
@@ -190,4 +203,4 @@ function drawThemePreview(ctx, theme, glyphs, x, y, w, h) {
   drawPiece(ctx, theme, 'p', x + w * 0.63, y + h * 0.44, radius, glyphs.p, false);
 }
 
-module.exports = { fontFamily, useFont, roundRect, drawBoard, drawPiece, drawThemePreview };
+module.exports = { fontFamily, useFont, usePieceFont, roundRect, drawBoard, drawPiece, drawThemePreview };

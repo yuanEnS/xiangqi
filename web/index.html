@@ -67,6 +67,11 @@
 </div>
 <noscript>需要开启 JavaScript 才能下棋。不会下？先看 <a href="rules.html">中国象棋规则</a>。</noscript>
 <script src="wx-adapter.js"></script>
-<script>XQ.boot('dist/game.js', 'dist/fonts/kai.ttf');</script>
+<script>
+  XQ.boot('dist/game.js', {
+    'fonts/kai.ttf': ['dist/fonts/kai.ttf', 'KaiSubset'],
+    'fonts/piece.ttf': ['dist/fonts/piece.ttf', 'PieceSubset'],
+  });
+</script>
 </body>
 </html>

@@ -161,14 +161,15 @@
     new Function('require', 'module', 'exports', xhr.responseText + '\n//# sourceURL=' + path)(require, module, module.exports);
     return module.exports;
   }
-  const kai = new FontFace('KaiSubset', 'url(/minigame/fonts/kai.ttf)');
-  kai.load()
-    .then(face => {
-      document.fonts.add(face);
-      loadedFonts['fonts/kai.ttf'] = 'KaiSubset';
-    })
-    .catch(() => {})
-    .then(() => load('/minigame/game.js'));
+  const fonts = { 'fonts/kai.ttf': 'KaiSubset', 'fonts/piece.ttf': 'PieceSubset' };
+  Promise.all(Object.entries(fonts).map(([path, name]) =>
+    new FontFace(name, `url(/minigame/${path})`).load()
+      .then(face => {
+        document.fonts.add(face);
+        loadedFonts[path] = name;
+      })
+      .catch(() => {})
+  )).then(() => load('/minigame/game.js'));
 })();
 </script>
 </body>

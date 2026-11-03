@@ -1,15 +1,17 @@
 // 游戏主逻辑：界面绘制、点击处理、联网对战流程
 const { Game, sideOf, legalMoves } = require('./xiangqi.js');
 const { THEMES, GLYPHS, getTheme } = require('./themes.js');
-const { fontFamily, useFont, roundRect, drawBoard, drawPiece, drawThemePreview } = require('./draw.js');
+const { fontFamily, useFont, usePieceFont, roundRect, drawBoard, drawPiece, drawThemePreview } = require('./draw.js');
 const { LEVELS, findBestMove } = require('./ai.js');
 const Net = require('./net.js');
 const { SERVER_URL } = require('./config.js');
 
-// 楷体（霞鹜文楷，只保留游戏里用到的字）
+// 界面用霞鹜文楷，棋子用寒蝉正楷体（都只保留用到的字）
 if (wx.loadFont) {
   const family = wx.loadFont('fonts/kai.ttf');
   if (family) useFont(family);
+  const pieceFamily = wx.loadFont('fonts/piece.ttf');
+  if (pieceFamily) usePieceFont(pieceFamily);
 }
 
 // ---------- 画布与布局 ----------

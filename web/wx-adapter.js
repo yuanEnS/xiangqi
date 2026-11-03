@@ -140,23 +140,24 @@
     },
   };
 
-  // 先加载楷体，再运行游戏；字体加载失败也照常启动（用系统字体）
+  // 先加载字体，再运行游戏；字体加载失败也照常启动（用系统字体）
+  // fonts: { 小游戏里的字体路径: [网页上的字体地址, 字体名] }
   window.XQ = {
-    boot(gameSrc, fontUrl) {
+    boot(gameSrc, fonts) {
       const start = () => {
         const script = document.createElement('script');
         script.src = gameSrc;
         document.body.appendChild(script);
       };
       if (!window.FontFace) return start();
-      const face = new FontFace('KaiSubset', `url(${fontUrl})`);
-      face.load()
-        .then(f => {
-          document.fonts.add(f);
-          loadedFonts['fonts/kai.ttf'] = 'KaiSubset';
-        })
-        .catch(() => {})
-        .then(start);
+      Promise.all(Object.entries(fonts).map(([path, [url, name]]) =>
+        new FontFace(name, `url(${url})`).load()
+          .then(f => {
+            document.fonts.add(f);
+            loadedFonts[path] = name;
+          })
+          .catch(() => {})
+      )).then(start);
     },
   };
 
