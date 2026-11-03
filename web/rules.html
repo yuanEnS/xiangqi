@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中国象棋规则入门：棋子走法、胜负判定与记谱方法 | 游戏园</title>
+<meta name="description" content="一页看懂中国象棋规则：帅仕相马车炮兵七种棋子怎么走，蹩马腿、塞象眼、炮打隔子、将帅不能照面，怎样算赢，以及「炮二平五」这类棋谱怎么读。看完就能在线下一盘。">
+<link rel="canonical" href="https://gamesyuan.com/xiangqi/rules.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#FAF3E8">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="游戏园">
+<meta property="og:title" content="中国象棋规则入门 · 游戏园">
+<meta property="og:description" content="七种棋子的走法、胜负判定和记谱方法，看完就能下。">
+<meta property="og:url" content="https://gamesyuan.com/xiangqi/rules.html">
+<meta property="og:image" content="https://gamesyuan.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      "headline": "中国象棋规则入门：棋子走法、胜负判定与记谱方法",
+      "inLanguage": "zh-CN",
+      "url": "https://gamesyuan.com/xiangqi/rules.html",
+      "image": "https://gamesyuan.com/og.png",
+      "publisher": { "@type": "Organization", "name": "游戏园", "url": "https://gamesyuan.com/" }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "游戏园", "item": "https://gamesyuan.com/" },
+        { "@type": "ListItem", "position": 2, "name": "中国象棋", "item": "https://gamesyuan.com/xiangqi/" },
+        { "@type": "ListItem", "position": 3, "name": "规则入门", "item": "https://gamesyuan.com/xiangqi/rules.html" }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "象棋里的马怎么走？", "acceptedAnswer": { "@type": "Answer", "text": "马走「日」字：先直走一格，再斜走一格。如果直走方向紧挨着有棋子挡住，这个方向就走不了，叫「蹩马腿」。" } },
+        { "@type": "Question", "name": "炮怎么吃子？", "acceptedAnswer": { "@type": "Answer", "text": "炮不吃子时和车一样横竖直走；吃子时必须和目标之间正好隔一个棋子（叫炮架），跳过去吃。" } },
+        { "@type": "Question", "name": "象可以过河吗？", "acceptedAnswer": { "@type": "Answer", "text": "不可以。相和象只能在自己一方的河界内走「田」字，田字中心有棋子时也不能走，叫「塞象眼」。" } },
+        { "@type": "Question", "name": "怎样才算赢？", "acceptedAnswer": { "@type": "Answer", "text": "把对方的将（帅）将死，或者让对方无棋可走（困毙），就赢了。对方认输也算赢。" } },
+        { "@type": "Question", "name": "将和帅可以面对面吗？", "acceptedAnswer": { "@type": "Answer", "text": "不可以。将和帅在同一条直线上、中间没有任何棋子隔开，是不允许的，走出这种局面的一方等于送将。" } }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+  :root {
+    --bg: #FAF3E8;
+    --card: #FFFCF6;
+    --primary: #B71C1C;
+    --primary-soft: rgba(183, 28, 28, 0.08);
+    --text: #3A2618;
+    --muted: #86705A;
+    --line: rgba(183, 28, 28, 0.3);
+    --rule: rgba(110, 70, 40, 0.15);
+    --kai: "LXGW WenKai", "Kaiti SC", "STKaiti", "KaiTi", "楷体", "Songti SC", serif;
+    --sans: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141821; --card: #1E2430; --primary: #EF5350; --primary-soft: rgba(239, 83, 80, 0.12);
+      --text: #E6E9EF; --muted: #97A0B0; --line: rgba(239, 83, 80, 0.4); --rule: rgba(255, 255, 255, 0.08);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141821; --card: #1E2430; --primary: #EF5350; --primary-soft: rgba(239, 83, 80, 0.12);
+    --text: #E6E9EF; --muted: #97A0B0; --line: rgba(239, 83, 80, 0.4); --rule: rgba(255, 255, 255, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.8 var(--sans); }
+  a { color: var(--primary); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+
+  header { padding: 18px 0; }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; font: 22px/1 var(--kai); color: var(--primary); }
+  .logo-mark {
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--primary); color: #FFF4E6; font: 19px/1 var(--kai);
+    box-shadow: inset 0 0 0 2.5px var(--primary), inset 0 0 0 4px #FFF4E6;
+  }
+  .crumbs { font-size: 13px; color: var(--muted); }
+  .crumbs a { color: var(--muted); }
+
+  h1 { font: 34px/1.3 var(--kai); margin: 20px 0 10px; }
+  .lead { color: var(--muted); margin: 0 0 20px; }
+  h2 { font: 24px/1.4 var(--kai); margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--rule); }
+  h3 { font: 19px/1.4 var(--kai); margin: 20px 0 4px; color: var(--primary); }
+  p, li { margin: 0 0 10px; }
+  ul { padding-left: 1.3em; }
+
+  .btn {
+    display: inline-block; padding: 11px 24px; border-radius: 10px;
+    background: var(--primary); color: #fff; text-decoration: none; font: 18px/1.2 var(--kai);
+  }
+  .btn:hover { filter: brightness(1.08); }
+
+  .toc { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: 12px 18px; margin: 8px 0 0; }
+  .toc ol { margin: 0; padding-left: 1.3em; columns: 2; column-gap: 24px; }
+  .toc li { margin: 2px 0; }
+
+  .piece {
+    display: inline-grid; place-items: center; width: 1.9em; height: 1.9em; margin-right: 4px;
+    border-radius: 50%; font: 17px/1 var(--kai); vertical-align: -0.35em;
+    background: #B71C1C; color: #FFF4E4; box-shadow: inset 0 0 0 2px #B71C1C, inset 0 0 0 3px #FFF4E4;
+  }
+  .piece.b { background: #262019; box-shadow: inset 0 0 0 2px #262019, inset 0 0 0 3px #FFF4E4; }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 15px; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: normal; font-size: 13px; }
+  td:first-child { white-space: nowrap; font-family: var(--kai); font-size: 17px; }
+
+  .note { background: var(--primary-soft); border-radius: 10px; padding: 10px 14px; margin: 12px 0; }
+  .cta { margin: 40px 0 0; padding: 22px; border-radius: 14px; background: var(--card); border: 1.5px solid var(--line); text-align: center; }
+  .cta p { color: var(--muted); }
+
+  footer { margin-top: 40px; padding: 20px 0 36px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 560px) {
+    h1 { font-size: 27px; }
+    .toc ol { columns: 1; }
+    th, td { padding: 8px 6px; }
+    td:first-child { white-space: normal; }
+    .piece { width: 1.7em; height: 1.7em; font-size: 15px; margin: 0 2px 2px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="游戏园首页"><span class="logo-mark" aria-hidden="true">游</span>游戏园</a>
+    <nav class="crumbs"><a href="/">首页</a> › <a href="./">中国象棋</a> › 规则</nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>中国象棋规则入门</h1>
+  <p class="lead">七种棋子怎么走、怎样算赢、棋谱怎么读。十分钟看完，就能下一盘。</p>
+  <a class="btn" href="./">直接开始下棋</a>
+
+  <nav class="toc" aria-label="目录">
+    <ol>
+      <li><a href="#board">棋盘和棋子</a></li>
+      <li><a href="#moves">七种棋子的走法</a></li>
+      <li><a href="#limits">几条容易忘的限制</a></li>
+      <li><a href="#win">怎样算赢</a></li>
+      <li><a href="#notation">怎么读棋谱</a></li>
+      <li><a href="#openings">新手常用开局</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="board">棋盘和棋子</h2>
+  <p>象棋棋盘由 9 条竖线和 10 条横线组成，棋子放在线的交叉点上，共 90 个点。中间空白的一行叫<strong>河界</strong>（常写作「楚河 汉界」），把棋盘分成双方各自的地盘。每方底线中间画有斜线的 3×3 区域叫<strong>九宫</strong>，是将帅和士的活动范围。</p>
+  <p>红黑双方各 16 个棋子：1 个帅（将）、2 个仕（士）、2 个相（象）、2 个马、2 个车、2 个炮、5 个兵（卒）。<strong>红方先走</strong>，之后双方轮流，每次走一步。</p>
+
+  <h2 id="moves">七种棋子的走法</h2>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>棋子（红 / 黑）</th><th>怎么走</th><th>活动范围</th></tr></thead>
+    <tbody>
+      <tr><td><span class="piece">帅</span><span class="piece b">将</span></td><td>横或竖走一格</td><td>只在九宫内</td></tr>
+      <tr><td><span class="piece">仕</span><span class="piece b">士</span></td><td>斜走一格</td><td>只在九宫内</td></tr>
+      <tr><td><span class="piece">相</span><span class="piece b">象</span></td><td>斜走两格，走「田」字的对角</td><td>不能过河</td></tr>
+      <tr><td><span class="piece">马</span><span class="piece b">马</span></td><td>走「日」字：先直走一格，再斜走一格</td><td>全盘</td></tr>
+      <tr><td><span class="piece">车</span><span class="piece b">车</span></td><td>横竖直走，格数不限，不能跳过棋子</td><td>全盘</td></tr>
+      <tr><td><span class="piece">炮</span><span class="piece b">炮</span></td><td>移动和车一样；吃子时必须隔一个棋子跳吃</td><td>全盘</td></tr>
+      <tr><td><span class="piece">兵</span><span class="piece b">卒</span></td><td>过河前只能向前一格；过河后可以向前或左右一格</td><td>永远不能后退</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>除了炮，所有棋子都是「走到哪儿就吃到哪儿」：目标点上有对方棋子，走过去就把它吃掉。不能吃自己的棋子。</p>
+
+  <h2 id="limits">几条容易忘的限制</h2>
+  <h3>蹩马腿</h3>
+  <p>马先直走的那一格叫「马腿」。马腿上只要有棋子（不论敌我），这个方向的两个「日」字落点就都走不了。</p>
+  <h3>塞象眼</h3>
+  <p>相（象）走田字时，田字正中间那个点叫「象眼」。象眼上有棋子，这一步就不能走。</p>
+  <h3>炮要有炮架</h3>
+  <p>炮吃子时，和目标之间必须正好隔一个棋子，这个棋子叫「炮架」，敌我都可以。隔零个或隔两个以上都吃不到。</p>
+  <h3>将帅不能照面</h3>
+  <p>将和帅在同一条竖线上、中间没有任何棋子时，叫「照面」或「对脸」，这是不允许的。所以把中间唯一隔着的棋子走开，就等于送将，不能这样走。</p>
+  <h3>不能送将</h3>
+  <p>任何一步走完之后，自己的将（帅）都不能处在被对方吃掉的位置。被将军时，必须马上应将：躲开、挡住或吃掉对方将军的棋子。</p>
+
+  <h2 id="win">怎样算赢</h2>
+  <ul>
+    <li><strong>将死</strong>：对方被将军，而且无论怎么走都解不了，你赢。</li>
+    <li><strong>困毙</strong>：轮到对方走棋，但对方没有任何合法的着法（哪怕没被将军），也是你赢。这一点和国际象棋不同，象棋里没有「无子可动算和棋」。</li>
+    <li><strong>认输</strong>：对方主动认输。在游戏园联网对局中，对手中途离开或断线，也判你获胜。</li>
+  </ul>
+  <p class="note">正式比赛还有「长将」「长捉」等禁着规则，以及和棋的约定，规则比较细。本站对局目前不自动判定这些情况，如果局面反复循环，双方可以协商重开一局。</p>
+
+  <h2 id="notation">怎么读棋谱</h2>
+  <p>中文棋谱每一步用四个字表示，例如<strong>炮二平五</strong>、<strong>马8进7</strong>：</p>
+  <ul>
+    <li><strong>第一个字</strong>：哪个棋子。</li>
+    <li><strong>第二个字</strong>：它现在在第几路（第几条竖线）。红方用中文数字「一 ~ 九」，黑方用阿拉伯数字「1 ~ 9」，都是从<em>自己</em>的右手边往左数。</li>
+    <li><strong>第三个字</strong>：动作。「进」是向对方走，「退」是向自己走，「平」是横着走。</li>
+    <li><strong>第四个字</strong>：横走（平）时写走到第几路；车、炮、兵、帅直着进退时写走了几格；马、相、仕斜着走时写落到第几路。</li>
+  </ul>
+  <p>同一路上有两个相同棋子时，用「前」「后」区分，比如「前炮进一」。</p>
+
+  <h2 id="openings">新手常用开局</h2>
+  <h3>中炮（当头炮）：炮二平五</h3>
+  <p>最常见的进攻开局，把炮移到正中间直接瞄准对方中卒和将门，出子快、攻势明显，适合新手先学。</p>
+  <h3>屏风马：马8进7、马2进3</h3>
+  <p>黑方应对中炮的经典阵型，两匹马跳到中路两侧，护住中卒，攻守平衡。</p>
+  <h3>飞相局：相三进五</h3>
+  <p>先把相飞到中间，稳住阵脚再找机会，属于偏稳健的开局。</p>
+  <h3>仙人指路：兵七进一</h3>
+  <p>先挺一步兵试探对方的意图，再根据对方走法决定布局，比较灵活。</p>
+  <p>新手最常见的问题是只顾自己进攻，忘了看对方下一步能吃什么。每走一步之前，先看一眼对方的车、马、炮都盯着哪里。</p>
+
+  <section class="cta">
+    <p>规则看完了，去实战一下吧。电脑有入门、业余、大师三档难度，也可以快速匹配真人棋友。</p>
+    <a class="btn" href="./">开始下象棋</a>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">© 2026 <a href="/">游戏园 gamesyuan.com</a> · <a href="./">在线下中国象棋</a></div>
+</footer>
+
+</body>
+</html>
