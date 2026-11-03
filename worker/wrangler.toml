@@ -3,6 +3,11 @@ name = "xiangqi"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 
+# 正式地址 wss://api.gamesyuan.com（需要 gamesyuan.com 已经托管在 Cloudflare）。
+# 原来的 xiangqi.yuanens.workers.dev 也继续可用。
+workers_dev = true
+routes = [{ pattern = "api.gamesyuan.com", custom_domain = true }]
+
 # 所有玩家连到同一个 Durable Object，里面保存房间和匹配队列
 [[durable_objects.bindings]]
 name = "LOBBY"
