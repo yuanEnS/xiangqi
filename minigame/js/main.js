@@ -735,7 +735,7 @@ function overText() {
 function drawOverlay() {
   // 结算框弹出时只响应框里的按钮
   buttons = [];
-  ctx.fillStyle = theme.id === 'mono' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.45)';
+  ctx.fillStyle = theme.id === 'pao' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.45)';
   ctx.fillRect(0, 0, W, H);
   const w = Math.min(320, W - 48), h = 200;
   const x = (W - w) / 2, y = (H - h) / 2;
@@ -830,7 +830,7 @@ function drawThemes() {
       roundRect(ctx, cx - 4, cy - 4, cw + 8, ch + 8, 13);
       ctx.stroke();
     }
-    text(t.name, cx + cw / 2, cy + ch + 18, 14, selected ? ui.primary : ui.text, { bold: selected });
+    text(`${t.name} · ${t.desc}`, cx + cw / 2, cy + ch + 18, 14, selected ? ui.primary : ui.text, { bold: selected });
     hit(cx, cy, cw, ch + 30, () => selectTheme(t.id));
   });
 }

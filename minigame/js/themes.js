@@ -6,59 +6,63 @@
 
 const THEMES = [
   {
-    id: 'wood',
-    name: '木纹',
-    ui: { bg: '#FBF6EE', card: '#FFFDF8', primary: '#C62828', onPrimary: '#FFFFFF', text: '#3A2A1E', muted: '#8A7560', decor: 'rgba(120,90,60,0.07)' },
-    board: { fill: ['#F0DAB2', '#DDBA82'], grain: 'rgba(120,80,40,0.10)', frame: '#7A5230', frameWidth: 6, frameStyle: 'wood', line: '#6B4A2B', lineWidth: 1, river: '#8B5A2B' },
+    id: 'che',
+    name: '车',
+    desc: '檀木',
+    ui: { bg: '#FAF3E8', card: '#FFFCF6', primary: '#B71C1C', onPrimary: '#FFFFFF', text: '#3A2618', muted: '#86705A', decor: 'rgba(110,70,40,0.07)' },
+    board: { fill: ['#EBCB98', '#D2A86E'], grain: 'rgba(110,65,30,0.11)', frame: '#6A3E22', frameWidth: 7, frameStyle: 'wood', line: '#5E3D22', lineWidth: 1, river: '#7A4A24' },
     pieces: {
-      r: { fill: '#C62828', light: '#E8675C', text: '#FFF4E6', ring: 'rgba(255,240,220,0.75)' },
-      b: { fill: '#1F1F1F', light: '#5A5A5A', text: '#FFF4E6', ring: 'rgba(255,240,220,0.6)' },
+      r: { fill: '#B71C1C', light: '#E0584C', text: '#FFF4E4', ring: 'rgba(255,238,215,0.75)' },
+      b: { fill: '#262019', light: '#5C5247', text: '#FFF4E4', ring: 'rgba(255,238,215,0.6)' },
       edge: 'rgba(0,0,0,0.35)', edgeWidth: 1, shadow: true, gradient: true,
     },
-    mark: { select: '#1E88E5', hint: 'rgba(30,136,229,0.9)', last: '#1E88E5' },
+    mark: { select: '#1565C0', hint: 'rgba(21,101,192,0.9)', last: '#1565C0' },
   },
   {
-    id: 'simple',
-    name: '简约',
-    ui: { bg: '#FBF7F1', card: '#FFFFFF', primary: '#C62828', onPrimary: '#FFFFFF', text: '#33291F', muted: '#8C7D6B', decor: 'rgba(160,130,100,0.07)' },
-    board: { fill: ['#F5EBDC', '#F5EBDC'], frame: '#B89B74', frameWidth: 2, frameStyle: 'plain', line: '#B19C80', lineWidth: 1, river: '#A58A66' },
+    id: 'ma',
+    name: '马',
+    desc: '青瓷',
+    ui: { bg: '#EDF2EC', card: '#FAFCF9', primary: '#2F6B4F', onPrimary: '#FFFFFF', text: '#22332A', muted: '#66796D', decor: 'rgba(47,107,79,0.08)' },
+    board: { fill: ['#DCE8D6', '#C3D6BE'], frame: '#4E7A62', frameWidth: 6, frameStyle: 'plain', line: '#3F5E4C', lineWidth: 1, river: '#3F5E4C' },
     pieces: {
-      r: { fill: '#CC3333', light: '#CC3333', text: '#FFFFFF', ring: 'rgba(255,255,255,0.7)' },
-      b: { fill: '#2B2B2B', light: '#2B2B2B', text: '#FFFFFF', ring: 'rgba(255,255,255,0.55)' },
+      // 米白底红字 vs 墨绿底白字，转成灰度后一浅一深
+      r: { fill: '#FBF3E2', light: '#FFFDF6', text: '#B23A2E', ring: '#B23A2E' },
+      b: { fill: '#1F2E27', light: '#44564C', text: '#E8F0E6', ring: 'rgba(232,240,230,0.6)' },
+      edge: 'rgba(30,50,40,0.45)', edgeWidth: 1, shadow: true, gradient: true,
+    },
+    mark: { select: '#C77700', hint: 'rgba(199,119,0,0.9)', last: '#C77700' },
+  },
+  {
+    id: 'xiang',
+    name: '象',
+    desc: '宣纸',
+    ui: { bg: '#FBF8F2', card: '#FFFFFF', primary: '#C0392B', onPrimary: '#FFFFFF', text: '#2F2A24', muted: '#8A8072', decor: 'rgba(150,130,100,0.06)' },
+    board: { fill: ['#FAF4E6', '#FAF4E6'], frame: '#A88B63', frameWidth: 2, frameStyle: 'plain', line: '#A8977E', lineWidth: 1, river: '#9A8466' },
+    pieces: {
+      r: { fill: '#C0392B', light: '#C0392B', text: '#FFFFFF', ring: 'rgba(255,255,255,0.7)' },
+      b: { fill: '#2D2A26', light: '#2D2A26', text: '#FFFFFF', ring: 'rgba(255,255,255,0.55)' },
       edge: 'rgba(0,0,0,0.25)', edgeWidth: 1, shadow: true, gradient: false,
     },
-    mark: { select: '#1E88E5', hint: 'rgba(30,136,229,0.9)', last: '#1E88E5' },
+    mark: { select: '#1565C0', hint: 'rgba(21,101,192,0.9)', last: '#1565C0' },
   },
   {
-    id: 'vietnam',
-    name: '越南',
-    ui: { bg: '#EEF0E2', card: '#FAFBF4', primary: '#3F6B2A', onPrimary: '#FFFFFF', text: '#2F3A22', muted: '#6F7A5C', decor: 'rgba(63,107,42,0.09)' },
-    board: { fill: ['#F1E9C9', '#E2D5A6'], grain: 'rgba(110,100,40,0.08)', frame: '#5E8A35', frameWidth: 9, frameStyle: 'bamboo', line: '#4B5A2C', lineWidth: 1, river: '#A23A2A' },
-    pieces: {
-      // 象牙白底红字 vs 黑底白字，明暗对比最强
-      r: { fill: '#F3EAD2', light: '#FFFBEF', text: '#C0392B', ring: '#C0392B' },
-      b: { fill: '#1E1E1E', light: '#4A4A4A', text: '#F3EAD2', ring: 'rgba(243,234,210,0.65)' },
-      edge: 'rgba(60,50,20,0.45)', edgeWidth: 1, shadow: true, gradient: true,
-    },
-    mark: { select: '#D35400', hint: 'rgba(211,84,0,0.9)', last: '#D35400' },
-  },
-  {
-    id: 'night',
-    name: '墨夜',
-    ui: { bg: '#16191F', card: '#20242C', primary: '#E5484D', onPrimary: '#FFFFFF', text: '#E8EAED', muted: '#9AA1AD', decor: 'rgba(255,255,255,0.04)' },
-    board: { fill: ['#2F3542', '#252A34'], frame: '#0F1115', frameWidth: 5, frameStyle: 'plain', line: '#5B6479', lineWidth: 1, river: '#7D8799' },
+    id: 'shi',
+    name: '士',
+    desc: '墨夜',
+    ui: { bg: '#141821', card: '#1E2430', primary: '#E5484D', onPrimary: '#FFFFFF', text: '#E6E9EF', muted: '#97A0B0', decor: 'rgba(255,255,255,0.04)' },
+    board: { fill: ['#2C3446', '#232A39'], frame: '#0D1017', frameWidth: 5, frameStyle: 'plain', line: '#5A6580', lineWidth: 1, river: '#7C879C' },
     pieces: {
       r: { fill: '#E5484D', light: '#F37C80', text: '#FFFFFF', ring: 'rgba(255,255,255,0.7)' },
       // 黑方用浅色棋子，在深色棋盘上和红方一深一浅
-      b: { fill: '#D8DCE3', light: '#FFFFFF', text: '#1B1E24', ring: 'rgba(27,30,36,0.45)' },
+      b: { fill: '#D6DBE4', light: '#FFFFFF', text: '#1A1E26', ring: 'rgba(26,30,38,0.45)' },
       edge: 'rgba(0,0,0,0.5)', edgeWidth: 1, shadow: true, gradient: true,
     },
     mark: { select: '#FFC857', hint: 'rgba(255,200,87,0.95)', last: '#FFC857' },
   },
   {
-    id: 'mono',
-    name: '黑白',
-    desc: '墨水屏',
+    id: 'pao',
+    name: '炮',
+    desc: '黑白',
     ui: { bg: '#FFFFFF', card: '#FFFFFF', primary: '#000000', onPrimary: '#FFFFFF', text: '#000000', muted: '#444444', decor: null },
     board: { fill: ['#FFFFFF', '#FFFFFF'], frame: '#000000', frameWidth: 3, frameStyle: 'double', line: '#000000', lineWidth: 1.2, river: '#000000' },
     pieces: {
@@ -82,7 +86,11 @@ const GLYPHS = {
   },
 };
 
+// 旧版本存下的主题 id，换成对应的新主题
+const OLD_IDS = { wood: 'che', vietnam: 'ma', simple: 'xiang', night: 'shi', mono: 'pao' };
+
 function getTheme(id) {
+  id = OLD_IDS[id] || id;
   return THEMES.find(t => t.id === id) || THEMES[0];
 }
 

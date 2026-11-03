@@ -56,30 +56,6 @@ function drawFrame(ctx, board, x, y, w, h) {
     ctx.strokeStyle = 'rgba(255,255,255,0.18)';
     ctx.lineWidth = 1;
     ctx.strokeRect(x + fw + 0.5, y + fw + 0.5, w - 2 * fw - 1, h - 2 * fw - 1);
-  } else if (board.frameStyle === 'bamboo') {
-    // 竹子：中间一道高光，每隔一段画一个竹节
-    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-    ctx.lineWidth = fw * 0.25;
-    ctx.strokeRect(x + fw * 0.4, y + fw * 0.4, w - fw * 0.8, h - fw * 0.8);
-    ctx.strokeStyle = 'rgba(30,50,10,0.45)';
-    ctx.lineWidth = 2;
-    const step = Math.max(28, w / 7);
-    for (let sx = x + step * 0.6; sx < x + w - fw; sx += step) {
-      for (const sy of [y, y + h - fw]) {
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx, sy + fw);
-        ctx.stroke();
-      }
-    }
-    for (let sy = y + step * 0.6; sy < y + h - fw; sy += step) {
-      for (const sx of [x, x + w - fw]) {
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + fw, sy);
-        ctx.stroke();
-      }
-    }
   } else if (board.frameStyle === 'double') {
     ctx.lineWidth = 1;
     ctx.strokeRect(x + fw + 3.5, y + fw + 3.5, w - 2 * fw - 7, h - 2 * fw - 7);
