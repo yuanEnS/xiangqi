@@ -29,6 +29,8 @@ class Net {
     socket.onOpen(() => {
       this.open = true;
       this.startPing();
+      // 服务器据此记积分；第一次联网没有令牌，服务器会建一个游客账号并发回令牌
+      socket.send({ data: JSON.stringify({ t: 'auth', token: wx.getStorageSync('token') || '' }) });
       for (const msg of this.queue) socket.send({ data: JSON.stringify(msg) });
       this.queue = [];
     });
@@ -37,6 +39,10 @@ class Net {
       try {
         msg = JSON.parse(res.data);
       } catch (e) {
+        return;
+      }
+      if (msg.t === 'auth') {
+        if (msg.token) wx.setStorageSync('token', msg.token);
         return;
       }
       this.onMessage(msg);

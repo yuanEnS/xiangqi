@@ -8,6 +8,19 @@ compatibility_date = "2025-09-01"
 workers_dev = true
 routes = [{ pattern = "api.gamesyuan.com", custom_domain = true }]
 
+# 账号、积分、排行榜。改表结构：加一个 migrations/ 文件，再运行
+# npx wrangler d1 migrations apply gamesyuan --remote
+[[d1_databases]]
+binding = "DB"
+database_name = "gamesyuan"
+database_id = "1486a587-ad5a-43d0-9dfc-400f7b7aaad6"
+
+# GOOGLE_CLIENT_ID 留空时不显示 Google 登录（它是公开信息，可以写在这里）。
+# 邮箱登录要配置 Resend 密钥（不要写在这里）：npx wrangler secret put RESEND_API_KEY
+[vars]
+GOOGLE_CLIENT_ID = ""
+MAIL_FROM = "游戏园 <noreply@gamesyuan.com>"
+
 # 所有玩家连到同一个 Durable Object，里面保存房间和匹配队列
 [[durable_objects.bindings]]
 name = "LOBBY"

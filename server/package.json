@@ -8,7 +8,8 @@
     "start": "node server.js",
     "test": "node test-rules.js && node test-server.js",
     "test:ai": "node test-ai.js",
-    "test:gomoku": "node test-gomoku.js"
+    "test:gomoku": "node test-gomoku.js",
+    "test:accounts": "node test-accounts.js"
   },
   "dependencies": {
     "ws": "^8.22.1"

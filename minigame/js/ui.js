@@ -299,6 +299,20 @@ function resultBox(title, sub, actions) {
   buttonRow(actions, x + pad, y + h - 68, w - pad * 2, 44);
 }
 
+// 结果框副标题后面加上这局的积分变化
+function withRating(sub, change) {
+  if (!change) return sub;
+  const delta = `积分 ${change.delta >= 0 ? '+' : ''}${change.delta}（${change.rating}）`;
+  return sub ? `${sub} · ${delta}` : delta;
+}
+
+// 首页右上角的账号入口，只有网页版有（账号和排行榜是单独的网页）
+function accountButton() {
+  if (!wx.openAccountPage) return;
+  pill('账号 · 排行榜', W - 16, titleY);
+  hit(W - 130, titleY - 22, 130, 44, () => wx.openAccountPage());
+}
+
 // ---------- 联网等待画面 ----------
 // 匹配中：icon(x, y, r) 画在中间，外面一圈转动的弧线
 function matchingScreen(startTime, online, icon, onCancel) {
@@ -417,7 +431,7 @@ module.exports = {
   W, H, ctx, titleY, contentTop, BAR_H, ACTION_H, playLayout,
   settings, saveSettings, theme, GLYPHS, THEMES,
   show, render, clearButtons, toast, confirmThen, actionSheet,
-  text, hit, button, buttonRow, pill, card, drawDecor, header, levelCard, entryCards, playerBar, resultBox,
+  text, hit, button, buttonRow, pill, card, drawDecor, header, levelCard, entryCards, playerBar, resultBox, withRating, accountButton,
   matchingScreen, connectingScreen, waitingScreen, askRoomCode,
   openThemes, closeThemes,
 };

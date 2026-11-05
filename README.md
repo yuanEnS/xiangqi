@@ -221,3 +221,20 @@ npm start
 - 断线重连（手机切到后台再回来时恢复对局）
 - 步时和局时
 - 长将、长捉判负，以及求和
+
+## 账号、积分和排行榜（只有网页版）
+
+账号页面是 gamesyuan.com/account/（在 yuanEnS.github.io 仓库里），接口和数据库都在 `worker/`：
+
+- 第一次联网时自动创建游客账号；用 Google 或邮箱验证码登录后，积分保留，可以跨设备使用。两种登录方式用同一个邮箱就是同一个账号。
+- 积分是 Elo，初始 1200，只有快速匹配计分。走满 6 步后离开算输，同一对手每天最多计 3 局。
+
+```bash
+cd worker
+npm run dev                                          # 本地运行，验证码直接显示在页面上，不真的发信
+node ../server/test-accounts.js                      # 另开一个终端跑自测
+npx wrangler d1 migrations apply gamesyuan --remote  # 线上数据库改表结构
+npx wrangler secret put RESEND_API_KEY               # 开通邮箱登录
+```
+
+开通 Google 登录：把 OAuth 客户端 ID 填到 `worker/wrangler.toml` 的 `GOOGLE_CLIENT_ID`，重新部署。

@@ -93,6 +93,9 @@ net.onMessage = msg => {
       state.rematchSent = false;
       state.opponentWantsRematch = false;
       state.opponentLeft = false;
+      state.me = msg.me;
+      state.opponent = msg.opponent;
+      state.ratingChange = null;
       clearSelection();
       ui.toast(`${msg.matched ? '匹配成功' : '开局'}！你执${colorName(msg.color)}`);
       break;
@@ -104,6 +107,10 @@ net.onMessage = msg => {
     case 'over':
       if (!state.game.winner) state.game.end(msg.winner, msg.reason);
       clearSelection();
+      break;
+    case 'rating':
+      state.ratingChange = msg;
+      if (state.me) state.me.rating = msg.rating;
       break;
     case 'rematch_request':
       state.opponentWantsRematch = true;
@@ -300,6 +307,7 @@ function drawHome() {
     text('象棋对战', 60, ui.titleY, 22, theme().ui.primary, { bold: true, align: 'left' });
   }
 
+  ui.accountButton();
   const entries = [
     { piece: 'P', title: '快速匹配', sub: '自动匹配正在找棋友的人', onTap: startMatch, online: true },
     { piece: 'K', title: '创建房间', sub: '生成房间号，邀请好友联网对战', onTap: createRoom, online: true },
@@ -357,8 +365,9 @@ function playerBar(y, side) {
     name = mine ? '我' : `电脑 · ${LEVELS[settings.aiLevel].name}`;
     sub = `执${colorName(side)}`;
   } else if (state.mode === 'online') {
-    name = mine ? '我' : '对手';
-    sub = `执${colorName(side)}${mine ? '' : state.matched ? ' · 随机匹配' : ` · 房间 ${state.roomCode}`}`;
+    const player = mine ? state.me : state.opponent;
+    name = mine ? '我' : (player ? player.name : '对手');
+    sub = `执${colorName(side)}${player ? ` · 积分 ${player.rating}` : ''}${mine ? '' : state.matched ? ' · 随机匹配' : ` · 房间 ${state.roomCode}`}`;
   } else {
     name = `${colorName(side)}方`;
     sub = '本地双人';
@@ -463,7 +472,7 @@ function drawOverlay() {
       { label: '返回首页', onTap: goMenu, outline: true },
     ]);
   } else {
-    ui.resultBox(title, sub, [rematchButton(), { label: '返回首页', onTap: goMenu, outline: true }]);
+    ui.resultBox(title, ui.withRating(sub, state.ratingChange), [rematchButton(), { label: '返回首页', onTap: goMenu, outline: true }]);
   }
 }
 

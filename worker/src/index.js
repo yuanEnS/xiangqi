@@ -2,6 +2,7 @@
 // 房间、匹配、走法校验都复用 server/lobby.js，和 Node 版行为完全一致。
 import { DurableObject } from 'cloudflare:workers';
 import lobbyModule from '../../server/lobby.js';
+import { connectUser, handleApi, recordResult } from './accounts.js';
 
 const { Lobby } = lobbyModule;
 
@@ -9,10 +10,31 @@ const { Lobby } = lobbyModule;
 export class LobbyObject extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
-    this.lobby = new Lobby();
+    this.lobby = new Lobby({ onResult: result => this.settle(result).catch(err => console.error('记录积分出错', err)) });
   }
 
-  async fetch() {
+  // 对局结束：记积分，把变化告诉双方
+  async settle({ kind, first, second, winner, reason, moves }) {
+    const change = await recordResult(this.env, {
+      game: kind, firstId: first.user.id, secondId: second.user.id, winner, reason, moves,
+    });
+    if (!change) return;
+    for (const [client, mine] of [[first, change.first], [second, change.second]]) {
+      client.user.ratings[kind] = mine.rating;
+      client.send({ t: 'rating', delta: mine.delta, rating: mine.rating });
+    }
+  }
+
+  // 认证失败不影响下棋，这个连接只是不计分
+  async auth(client, token, ip) {
+    const account = await connectUser(this.env, token, ip);
+    if (!account) return;
+    client.user = account.user;
+    client.send({ t: 'auth', token: account.token, name: account.user.name });
+  }
+
+  async fetch(request) {
+    const ip = request.headers.get('CF-Connecting-IP') || 'local';
     const [clientSocket, socket] = Object.values(new WebSocketPair());
     socket.accept();
 
@@ -27,6 +49,8 @@ export class LobbyObject extends DurableObject {
     };
     this.lobby.connect(client);
 
+    // 认证要查数据库，消息排队依次处理，保证先认证完再匹配
+    let pending = Promise.resolve();
     socket.addEventListener('message', event => {
       let msg;
       try {
@@ -34,11 +58,9 @@ export class LobbyObject extends DurableObject {
       } catch (e) {
         return;
       }
-      try {
-        this.lobby.message(client, msg);
-      } catch (err) {
-        console.error('处理消息出错', err);
-      }
+      pending = pending
+        .then(() => (msg.t === 'auth' ? this.auth(client, msg.token, ip) : this.lobby.message(client, msg)))
+        .catch(err => console.error('处理消息出错', err));
     });
     const closed = () => {
       this.lobby.disconnect(client);
@@ -55,6 +77,8 @@ export class LobbyObject extends DurableObject {
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('象棋联网服务器运行中', { headers: { 'content-type': 'text/plain; charset=utf-8' } });
     }

@@ -1,6 +1,7 @@
 node_modules/
 web/dist/
 _site/
+.wrangler/
 .DS_Store
 .claude/
 minigame/project.private.config.json

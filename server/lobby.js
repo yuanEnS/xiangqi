@@ -6,9 +6,12 @@
 //
 // 客户端 → 服务器：match {game} | cancel_match | create {game} | join {room, game}
 //                  move（象棋 {from, to}，五子棋 {at}）| resign | rematch | leave | ping
-// 服务器 → 客户端：matching {online} | created {room} | start {color, room, matched}
+// 服务器 → 客户端：matching {online} | created {room} | start {color, room, matched, me, opponent}
 //                  move（同上）| over {winner, reason} | rematch_request
 //                  opponent_left | error {msg}
+//
+// 积分：外层给 client 设置 user {id, name, ratings}，并传入 onResult。只有快速匹配的对局会上报，
+// 好友房间不计分，防止约好了刷分。Node 版没有账号，不传 onResult，一切照旧。
 
 const Xiangqi = require('../minigame/js/xiangqi.js');
 const Gomoku = require('../minigame/js/gomoku.js');
@@ -38,8 +41,12 @@ function kindOf(msg) {
 // 超过这么久没收到消息（客户端每 20 秒会 ping 一次），就当它已经掉线，不再给它匹配对手
 const STALE_MS = 60000;
 
+// 双方合计走够这么多步才计分，开局就退出不算
+const MIN_RATED_MOVES = 6;
+
 class Lobby {
-  constructor() {
+  constructor({ onResult } = {}) {
+    this.onResult = onResult;
     this.rooms = new Map(); // 房间号 -> { code, kind, players: { 颜色: client }, game, rematch, matched }
     this.queues = { xiangqi: [], gomoku: [] }; // 每种棋各自排队匹配
     this.clients = new Set();
@@ -98,14 +105,19 @@ class Lobby {
         const rules = GAMES[room.kind];
         if (room.game.turn !== client.color) return client.send({ t: 'error', msg: '还没轮到你' });
         if (!rules.play(room.game, msg)) return client.send({ t: 'error', msg: '走法不合法' });
+        room.moves++;
         this.broadcast(room, { t: 'move', ...rules.payload(msg) });
-        if (room.game.winner) this.broadcast(room, { t: 'over', winner: room.game.winner, reason: room.game.reason });
+        if (room.game.winner) {
+          this.broadcast(room, { t: 'over', winner: room.game.winner, reason: room.game.reason });
+          this.report(room);
+        }
         break;
       }
       case 'resign': {
         if (!room || !room.game || room.game.winner) return;
         room.game.end(this.opponent(room, client.color), 'resign');
         this.broadcast(room, { t: 'over', winner: room.game.winner, reason: 'resign' });
+        this.report(room);
         break;
       }
       case 'rematch': {
@@ -191,16 +203,37 @@ class Lobby {
 
   startGame(room) {
     room.game = new GAMES[room.kind].Game();
+    room.moves = 0;
     room.rematch.clear();
+    const info = client => client.user && { name: client.user.name, rating: client.user.ratings[room.kind] };
     for (const color of GAMES[room.kind].sides) {
-      room.players[color].send({ t: 'start', color, room: room.code, matched: room.matched });
+      const me = room.players[color];
+      const opponent = room.players[this.opponent(room, color)];
+      me.send({ t: 'start', color, room: room.code, matched: room.matched, me: info(me), opponent: info(opponent) });
     }
   }
 
-  // 任何一方离开，房间就解散，并通知另一方
+  // 对局结束时调用，game.winner 已经有值。同一账号开两个窗口对打不计分。
+  report(room) {
+    if (!this.onResult || !room.matched || room.moves < MIN_RATED_MOVES) return;
+    const [firstColor, secondColor] = GAMES[room.kind].sides;
+    const first = room.players[firstColor], second = room.players[secondColor];
+    if (!first || !second || !first.user || !second.user || first.user.id === second.user.id) return;
+    const { winner, reason } = room.game;
+    this.onResult({
+      kind: room.kind, first, second, reason, moves: room.moves,
+      winner: winner === firstColor ? 'first' : winner === secondColor ? 'second' : 'draw',
+    });
+  }
+
+  // 任何一方离开，房间就解散，并通知另一方。对局没结束就离开算输，否则快输时断线就能躲掉扣分。
   leaveRoom(client) {
     const room = client.room;
     if (!room) return;
+    if (room.game && !room.game.winner) {
+      room.game.end(this.opponent(room, client.color), 'left');
+      this.report(room);
+    }
     client.room = null;
     room.players[client.color] = null;
     const other = room.players[this.opponent(room, client.color)];
