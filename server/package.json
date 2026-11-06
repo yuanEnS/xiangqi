@@ -9,7 +9,8 @@
     "test": "node test-rules.js && node test-server.js",
     "test:ai": "node test-ai.js",
     "test:gomoku": "node test-gomoku.js",
-    "test:accounts": "node test-accounts.js"
+    "test:accounts": "node test-accounts.js",
+    "test:life": "node test-life.js"
   },
   "dependencies": {
     "ws": "^8.22.1"

@@ -8,6 +8,7 @@
 //   POST /api/login/email/verify {email, code}                GET  /api/rank?game=xiangqi
 import ratingModule from '../../server/rating.js';
 import googleModule from '../../server/google-token.js';
+import { lifeRoute } from './life.js';
 
 const { START, ratingDelta } = ratingModule;
 const { verifyGoogleToken } = googleModule;
@@ -23,14 +24,14 @@ const PAIR_GAMES_PER_DAY = 3; // 同一对手每天最多计分几局，防止�
 const RANK_SIZE = 100;
 const GOOGLE_KEYS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(status, message) {
     super(message);
     this.status = status;
   }
 }
 
-async function sha256(text) {
+export async function sha256(text) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
@@ -296,6 +297,8 @@ async function route(request, env, url) {
     if (!current) throw new ApiError(401, '请先登录');
     return current;
   };
+
+  if (url.pathname.startsWith('/api/life/')) return lifeRoute(env, key, url, body, current);
 
   switch (key) {
     case 'GET /api/config':

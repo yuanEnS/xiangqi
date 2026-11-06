@@ -222,6 +222,10 @@ npm start
 - 步时和局时
 - 长将、长捉判负，以及求和
 
+## 博客园中小记
+
+页面在 yuanEnS.github.io 仓库的 `life/`，接口在 `worker/src/life.js`，文章存在 D1 的 `posts` 表。只有 `LIFE_ADMIN_EMAIL_HASH`（邮箱的 SHA-256）对应的账号能写。自测：先 `cd worker && npm run dev`，再 `cd server && npm run test:life`。
+
 ## 账号、积分和排行榜（只有网页版）
 
 账号页面是 gamesyuan.com/account/（在 yuanEnS.github.io 仓库里），接口和数据库都在 `worker/`：

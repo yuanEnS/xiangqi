@@ -4,7 +4,7 @@
   "private": true,
   "description": "联网中国象棋服务器（Cloudflare Workers 版，给网页版用）",
   "scripts": {
-    "dev": "wrangler d1 migrations apply gamesyuan --local && wrangler dev --port 8787 --var EMAIL_TEST_MODE:1",
+    "dev": "wrangler d1 migrations apply gamesyuan --local && wrangler dev --port 8787 --var EMAIL_TEST_MODE:1 --var LIFE_ADMIN_EMAIL_HASH:a5bb203ce271fb51fc474370f8e4b414aae8ca12da306031e583b8bc7650e266",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
