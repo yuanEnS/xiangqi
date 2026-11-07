@@ -9,7 +9,8 @@
 //   POST /api/garden/invite {id, name}      主人按昵称邀请
 //   POST /api/garden/answer {id, accept}    受邀的人答应或拒绝
 //   POST /api/garden/remove {id, name?}     主人请人离开；不带 name 是自己退出
-import { ApiError } from './accounts.js';
+//   GET  /api/garden/geo?q=地名             搜城市或地点，给旅行地图用（转发 OpenStreetMap Nominatim）
+import { ApiError, overLimit } from './accounts.js';
 import { isAdmin, validDate } from './life.js';
 
 export const KINDS = ['wish', 'travel', 'dates'];
@@ -20,6 +21,11 @@ const ITEM_BODY_MAX = 5000;
 const GARDENS_MAX = 20; // 每人最多开几块园地
 const MEMBERS_MAX = 9; // 除了主人，最多几人一起写（含没答应的）
 const ITEMS_MAX = 300;
+// 地点搜索：经服务器转发，用户的 IP 不会发给 OpenStreetMap；同样的搜索缓存一周，按它的使用规定不多打扰
+const GEO_URL = 'https://nominatim.openstreetmap.org/search';
+const GEO_AGENT = 'gamesyuan-travel-map/1.0 (+https://gamesyuan.com/)';
+const GEO_PER_HOUR = 60;
+const GEO_CACHE_SECONDS = 7 * 86400;
 
 const SUMMARY = `g.id, g.kind, g.title, g.public, u.name AS owner,
   (SELECT COUNT(*) FROM garden_items WHERE garden_id = g.id) AS items,
@@ -238,6 +244,31 @@ async function removeMember(env, body, user) {
   return { ok: true };
 }
 
+async function geocode(env, url, user) {
+  const q = String(url.searchParams.get('q') || '').trim();
+  if (!q) throw new ApiError(400, '输入城市或地点的名字');
+  if ([...q].length > 60) throw new ApiError(400, '地名太长了');
+  if (await overLimit(env, `geo:${user.id}`, GEO_PER_HOUR, 3600000)) throw new ApiError(429, '搜得太频繁了，过一会儿再试');
+  const target = `${GEO_URL}?${new URLSearchParams({ q, format: 'jsonv2', limit: '6', 'accept-language': 'zh-CN,zh,en' })}`;
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  let res = cache && await cache.match(target);
+  if (!res) {
+    const fresh = await fetch(target, { headers: { 'User-Agent': GEO_AGENT, Referer: 'https://gamesyuan.com/' } });
+    if (!fresh.ok) throw new ApiError(502, '地点搜索暂时用不了，可以先在地图上点');
+    res = new Response(await fresh.text(), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${GEO_CACHE_SECONDS}` } });
+    if (cache) await cache.put(target, res.clone());
+  }
+  const places = await res.json();
+  return {
+    list: places.map(place => ({
+      name: place.name || place.display_name.split(',')[0],
+      label: place.display_name,
+      lat: Math.round(Number(place.lat) * 100) / 100,
+      lon: Math.round(Number(place.lon) * 100) / 100,
+    })),
+  };
+}
+
 export async function gardenRoute(env, key, url, body, user) {
   const writer = () => {
     if (!user) throw new ApiError(401, '请先登录');
@@ -254,6 +285,8 @@ export async function gardenRoute(env, key, url, body, user) {
   }
   writer();
   switch (key) {
+    case 'GET /api/garden/geo':
+      return geocode(env, url, user);
     case 'POST /api/garden/save':
       return save(env, body, user);
     case 'POST /api/garden/delete':

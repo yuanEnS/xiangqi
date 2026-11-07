@@ -32,6 +32,8 @@ async function signIn(email) {
   const ownerName = await nameOf(owner);
 
   check((await api('/garden/save', { kind: 'wish', title: '心愿' })).status === 401, '没登录不能开园地');
+  check((await api('/garden/geo?q=Kyoto')).status === 401, '没登录不能搜地点');
+  check((await api('/garden/geo?q=', undefined, owner)).status === 400, '搜地点要输入地名');
   check((await api('/garden/save', { kind: 'nope', title: '奇怪' }, owner)).status === 400, '只能开给定的几种');
   check((await api('/garden/save', { kind: 'wish', title: '' }, owner)).status === 400, '名字不能为空');
   const wish = await api('/garden/save', { kind: 'wish', title: '一起的心愿', intro: '慢慢实现' }, owner);

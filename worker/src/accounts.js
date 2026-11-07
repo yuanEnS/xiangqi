@@ -47,7 +47,7 @@ function randomInt(min, max) {
 }
 
 // 固定时间窗口内的次数限制，超过返回 true
-async function overLimit(env, key, max, windowMs) {
+export async function overLimit(env, key, max, windowMs) {
   const now = Date.now();
   await env.DB.prepare('DELETE FROM rate_limits WHERE reset_at < ?').bind(now).run();
   const row = await env.DB.prepare(
