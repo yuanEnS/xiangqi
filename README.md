@@ -222,9 +222,9 @@ npm start
 - 步时和局时
 - 长将、长捉判负，以及求和
 
-## 博客园中小记
+## 生活园
 
-页面在 yuanEnS.github.io 仓库的 `life/`，接口在 `worker/src/life.js`，文章存在 D1 的 `posts` 表。只有 `LIFE_ADMIN_EMAIL_HASH`（邮箱的 SHA-256）对应的账号能写。自测：先 `cd worker && npm run dev`，再 `cd server && npm run test:life`。
+页面在 yuanEnS.github.io 仓库的 `life/`，接口在 `worker/src/life.js`，文章存在 D1 的 `posts` 表。有邮箱的正式账号都能写，每人每天发布一篇（北京时间，记在 `life_days`），游客账号不能写。`LIFE_ADMIN_EMAIL_HASH`（邮箱的 SHA-256）对应的园主还能修改、删除别人已发布的文章。发布时可以选择把大致位置（取整到半度）存进 `life_places`，用来画地图。自测：先 `cd worker && npm run dev`，再 `cd server && npm run test:life`。
 
 ## 账号、积分和排行榜（只有网页版）
 

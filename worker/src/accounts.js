@@ -8,7 +8,7 @@
 //   POST /api/login/email/verify {email, code}                GET  /api/rank?game=xiangqi
 import ratingModule from '../../server/rating.js';
 import googleModule from '../../server/google-token.js';
-import { lifeRoute } from './life.js';
+import { OWNER_NAME, lifeRoute } from './life.js';
 
 const { START, ratingDelta } = ratingModule;
 const { verifyGoogleToken } = googleModule;
@@ -262,7 +262,7 @@ async function rename(env, user, body) {
     throw new ApiError(400, '昵称要 2 到 12 个字，只能用文字、数字、下划线');
   }
   const row = await env.DB.prepare('SELECT id FROM users WHERE name = ? AND id != ?').bind(name, user.id).first();
-  if (row) throw new ApiError(409, '这个昵称已经有人用了');
+  if (row || name === OWNER_NAME) throw new ApiError(409, '这个昵称已经有人用了');
   await env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, user.id).run();
   return profile(env, { ...user, name });
 }
@@ -271,6 +271,9 @@ async function removeAccount(env, user) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM ratings WHERE user_id = ?').bind(user.id),
+    env.DB.prepare('DELETE FROM posts WHERE author_id = ?').bind(user.id),
+    env.DB.prepare('DELETE FROM life_days WHERE user_id = ?').bind(user.id),
+    env.DB.prepare('DELETE FROM life_places WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
   ]);
   return { ok: true };
@@ -298,7 +301,7 @@ async function route(request, env, url) {
     return current;
   };
 
-  if (url.pathname.startsWith('/api/life/')) return lifeRoute(env, key, url, body, current);
+  if (url.pathname.startsWith('/api/life/')) return lifeRoute(env, key, url, body, current, request.cf);
 
   switch (key) {
     case 'GET /api/config':

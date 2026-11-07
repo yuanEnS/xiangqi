@@ -20,7 +20,7 @@ database_id = "1486a587-ad5a-43d0-9dfc-400f7b7aaad6"
 [vars]
 GOOGLE_CLIENT_ID = "548217929259-s8ufd3gfk6339jtrj3dqi3gprqgvj9h8.apps.googleusercontent.com"
 MAIL_FROM = "游戏园 <noreply@gamesyuan.com>"
-# 能写园中小记的账号：邮箱的 SHA-256，这样公开的代码里看不到邮箱
+# 生活园的园主，能管理所有文章：邮箱的 SHA-256，这样公开的代码里看不到邮箱
 LIFE_ADMIN_EMAIL_HASH = "dff0947151d78882a409da914039507fd4064b9d82159cc1e5e63b3c7789e10d"
 
 # 所有玩家连到同一个 Durable Object，里面保存房间和匹配队列
