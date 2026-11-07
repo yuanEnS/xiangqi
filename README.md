@@ -224,7 +224,9 @@ npm start
 
 ## 生活园
 
-页面在 yuanEnS.github.io 仓库的 `life/`，接口在 `worker/src/life.js`，文章存在 D1 的 `posts` 表。有邮箱的正式账号都能写，每人每天发布一篇（北京时间，记在 `life_days`），游客账号不能写。`LIFE_ADMIN_EMAIL_HASH`（邮箱的 SHA-256）对应的园主还能修改、删除别人已发布的文章。发布时可以选择把大致位置（取整到半度）存进 `life_places`，用来画地图。自测：先 `cd worker && npm run dev`，再 `cd server && npm run test:life`。
+页面在 yuanEnS.github.io 仓库的 `life/`，接口在 `worker/src/life.js`，文章存在 D1 的 `posts` 表。有邮箱的正式账号都能写，每人每天发布一篇（北京时间，记在 `life_days`），游客账号不能写。`LIFE_ADMIN_EMAIL_HASH`（邮箱的 SHA-256）对应的园主还能修改、删除别人已发布的文章。发布时可以选择把大致位置（取整到半度）存进 `life_places`，用来画地图。文章可以带版权声明（`rights`），也可以只给自己看（`hidden`）。
+
+私人园里的园地（心愿单、旅行地图、纪念日）在 `worker/src/garden.js`，表是 `gardens`、`garden_members`、`garden_items`。园地默认只有主人和受邀的人能看，主人可以改成公开；主人按昵称邀请，对方答应后能添加和修改条目，只能删自己写的。自测：先 `cd worker && npm run dev`，再 `cd server && npm run test:life` 和 `node test-garden.js`。
 
 ## 账号、积分和排行榜（只有网页版）
 

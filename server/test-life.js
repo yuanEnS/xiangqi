@@ -61,6 +61,25 @@ async function signIn(email) {
   await api('/life/save', { ...post, id: draft.id, draft: true }, writer);
   check((await api('/life/save', { ...post, id: draft.id }, writer)).id === draft.id, '改成草稿再发布不算新的一篇');
 
+  check((await api('/life/save', { ...post, id: draft.id, rights: 'steal' }, writer)).status === 400, '版权声明只能选给定的几种');
+  check((await api('/life/save', { ...post, id: draft.id, rights: 'credit' }, writer)).id === draft.id, '能加原创声明');
+  check((await api(`/life/post?id=${draft.id}`)).post.rights === 'credit', '文章带原创声明');
+  await api('/life/save', { ...post, id: draft.id }, writer);
+  check((await api(`/life/post?id=${draft.id}`)).post.rights === 'credit', '没带声明的保存沿用原来的');
+  check((await api('/life/mine', undefined, writer)).list.some(p => p.id === draft.id && p.rights === 'credit'), '我的文章列表带声明');
+  await api('/life/save', { ...post, id: draft.id, public: false }, writer);
+  check(!(await api('/life/posts')).list.some(p => p.id === draft.id), '不公开的文章不在公开列表');
+  check((await api(`/life/post?id=${draft.id}`)).status === 404, '路人打不开不公开的文章');
+  check((await api(`/life/post?id=${draft.id}`, undefined, admin)).status === 404, '园主也打不开不公开的文章');
+  check((await api(`/life/post?id=${draft.id}`, undefined, writer)).post.hidden === 1, '作者能打开自己不公开的文章');
+  check(!(await api('/life/map')).bubbles.some(b => b.id === draft.id), '不公开的文章不进地图气泡');
+  await api('/life/save', { ...post, id: draft.id }, writer);
+  check((await api(`/life/post?id=${draft.id}`, undefined, writer)).post.hidden === 1, '没带公开选项的保存沿用原来的');
+  await api('/life/save', { ...post, id: draft.id, public: true, rights: 'credit' }, writer);
+  check((await api('/life/posts')).list.some(p => p.id === draft.id), '改回公开后大家又能看到');
+  await api('/life/save', { ...post, id: draft.id, public: false, rights: '' }, admin);
+  const kept = (await api(`/life/post?id=${draft.id}`)).post;
+  check(kept && kept.hidden === 0 && kept.rights === 'credit', '园主改别人的文章不会改掉公开和声明');
   check((await api('/life/save', { ...post, id: draft.id, title: '偷改' }, other)).status === 403, '别的账号不能改');
   check((await api('/life/delete', { id: draft.id }, other)).status === 403, '别的账号不能删');
   check((await api('/life/save', { ...post, id: 999999 }, writer)).status === 404, '不能修改不存在的文章');

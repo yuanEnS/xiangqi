@@ -9,6 +9,7 @@
 import ratingModule from '../../server/rating.js';
 import googleModule from '../../server/google-token.js';
 import { OWNER_NAME, lifeRoute } from './life.js';
+import { gardenRoute, deleteGardens } from './garden.js';
 
 const { START, ratingDelta } = ratingModule;
 const { verifyGoogleToken } = googleModule;
@@ -274,6 +275,10 @@ async function removeAccount(env, user) {
     env.DB.prepare('DELETE FROM posts WHERE author_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM life_days WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM life_places WHERE user_id = ?').bind(user.id),
+    // 自己开的园地整块删掉；在别人园地里写的条目和成员身份也删掉
+    ...deleteGardens(env, 'owner_id = ?', user.id),
+    env.DB.prepare('DELETE FROM garden_items WHERE author_id = ?').bind(user.id),
+    env.DB.prepare('DELETE FROM garden_members WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
   ]);
   return { ok: true };
@@ -302,6 +307,7 @@ async function route(request, env, url) {
   };
 
   if (url.pathname.startsWith('/api/life/')) return lifeRoute(env, key, url, body, current, request.cf);
+  if (url.pathname.startsWith('/api/garden/')) return gardenRoute(env, key, url, body, current);
 
   switch (key) {
     case 'GET /api/config':
