@@ -1,8 +1,9 @@
-// 私人园里的园地：心愿单、旅行地图、纪念日。主人可以邀请别的账号一起写。
+// 私人园里的园地：心愿单、旅行地图、纪念日，还有自己起名的「其他」（写文章、随笔）。主人可以邀请别的账号一起写。
 // 园地默认只有主人和一起写的人能看，主人可以改成公开，公开的会出现在他的私人园里。
+// 园地里还能开小园地（园中园），最多三层。小园地的主人、一起写的人、公开与否都跟着最外面那块走。
 //   GET  /api/garden/list?author=昵称       某人公开的园地；不带 author 是自己的，含收到的邀请
 //   GET  /api/garden/view?id=1              一块园地、一起写的人和全部条目
-//   POST /api/garden/save {id?, kind, title, intro, public}
+//   POST /api/garden/save {id?, parent?, kind, title, intro, public}   带 parent 是在那块园地里开小园地
 //   POST /api/garden/delete {id}
 //   POST /api/garden/item {garden, id?, title, body, date, lat, lon, done}
 //   POST /api/garden/item/delete {id}
@@ -13,12 +14,16 @@
 import { ApiError, overLimit } from './accounts.js';
 import { isAdmin, validDate } from './life.js';
 
-export const KINDS = ['wish', 'travel', 'dates'];
+export const KINDS = ['wish', 'travel', 'dates', 'notes'];
 const TITLE_MAX = 40;
 const INTRO_MAX = 300;
 const ITEM_TITLE_MAX = 100;
 const ITEM_BODY_MAX = 5000;
-const GARDENS_MAX = 20; // 每人最多开几块园地
+const NOTE_BODY_MAX = 20000; // 「其他」园地写的是文章，可以长一些
+const GARDENS_MAX = 20; // 每人最多开几块最外面的园地
+const ALL_GARDENS_MAX = 200; // 连小园地在内，每人名下最多几块
+const DEPTH_MAX = 3; // 园中园最多几层
+const CHILDREN_MAX = 30; // 一块园地里最多几块小园地
 const MEMBERS_MAX = 9; // 除了主人，最多几人一起写（含没答应的）
 const ITEMS_MAX = 300;
 // 地点搜索：经服务器转发，用户的 IP 不会发给 OpenStreetMap；同样的搜索缓存一周，按它的使用规定不多打扰
@@ -29,7 +34,11 @@ const GEO_CACHE_SECONDS = 7 * 86400;
 
 const SUMMARY = `g.id, g.kind, g.title, g.public, u.name AS owner,
   (SELECT COUNT(*) FROM garden_items WHERE garden_id = g.id) AS items,
-  (SELECT COUNT(*) FROM garden_members WHERE garden_id = g.id AND joined = 1) AS members`;
+  (SELECT COUNT(*) FROM garden_members WHERE garden_id = g.id AND joined = 1) AS members,
+  (SELECT COUNT(*) FROM gardens WHERE parent_id = g.id) AS children`;
+// 一块园地和它下面所有的小园地
+const TREE = `WITH RECURSIVE tree(id) AS (
+  SELECT id FROM gardens WHERE id = ? UNION ALL SELECT g.id FROM gardens g JOIN tree t ON g.parent_id = t.id)`;
 const WITH_OWNER = 'FROM gardens g JOIN users u ON u.id = g.owner_id';
 
 function text(value, max, label, required = false) {
@@ -39,19 +48,29 @@ function text(value, max, label, required = false) {
   return result;
 }
 
-// 我在这块园地里的身份：owner 主人、member 一起写、invited 收到邀请还没答应、none 路人
+// 我在这块园地里的身份：owner 主人、member 一起写、invited 收到邀请还没答应、none 路人。
+// 小园地往上找到最外面那块（root），身份和公开与否都看它；path 是从最外面到上一层的园地
 async function open(env, id, user) {
   const garden = await env.DB.prepare(`SELECT g.*, u.name AS owner ${WITH_OWNER} WHERE g.id = ?`).bind(Number(id) || 0).first();
   if (!garden) throw new ApiError(404, '这块园地不存在');
+  const path = [];
+  let root = garden;
+  while (root.parent_id && path.length < DEPTH_MAX) {
+    const parent = await env.DB.prepare('SELECT id, parent_id, owner_id, kind, title, public FROM gardens WHERE id = ?')
+      .bind(root.parent_id).first();
+    if (!parent) throw new ApiError(404, '这块园地不存在');
+    path.unshift({ id: parent.id, title: parent.title, kind: parent.kind });
+    root = parent;
+  }
   let role = 'none';
-  if (user && garden.owner_id === user.id) role = 'owner';
+  if (user && root.owner_id === user.id) role = 'owner';
   else if (user) {
     const member = await env.DB.prepare('SELECT joined FROM garden_members WHERE garden_id = ? AND user_id = ?')
-      .bind(garden.id, user.id).first();
+      .bind(root.id, user.id).first();
     if (member) role = member.joined ? 'member' : 'invited';
   }
-  if (role === 'none' && !garden.public) throw new ApiError(404, '这块园地不存在');
-  return { garden, role };
+  if (role === 'none' && !root.public) throw new ApiError(404, '这块园地不存在');
+  return { garden, root, role, path };
 }
 
 function needWriter(role) {
@@ -69,14 +88,15 @@ async function touch(env, id) {
 async function list(env, user, author) {
   if (author) {
     const { results } = await env.DB.prepare(
-      `SELECT ${SUMMARY} ${WITH_OWNER} WHERE u.name = ? AND g.public = 1 ORDER BY g.updated_at DESC`
+      `SELECT ${SUMMARY} ${WITH_OWNER} WHERE u.name = ? AND g.public = 1 AND g.parent_id IS NULL ORDER BY g.updated_at DESC`
     ).bind(author).all();
     return { list: results };
   }
   const [mine, invites] = await Promise.all([
     env.DB.prepare(
       `SELECT ${SUMMARY}, g.owner_id = ?1 AS owned ${WITH_OWNER}
-       WHERE g.owner_id = ?1 OR g.id IN (SELECT garden_id FROM garden_members WHERE user_id = ?1 AND joined = 1)
+       WHERE g.parent_id IS NULL
+         AND (g.owner_id = ?1 OR g.id IN (SELECT garden_id FROM garden_members WHERE user_id = ?1 AND joined = 1))
        ORDER BY g.updated_at DESC`
     ).bind(user.id).all(),
     env.DB.prepare(
@@ -89,27 +109,33 @@ async function list(env, user, author) {
 }
 
 async function view(env, id, user) {
-  const { garden, role } = await open(env, id, user);
+  const { garden, root, role, path } = await open(env, id, user);
   const insider = role !== 'none';
-  const [members, items] = await Promise.all([
+  const [members, items, children] = await Promise.all([
     env.DB.prepare(
       `SELECT u.name, m.joined FROM garden_members m JOIN users u ON u.id = m.user_id
        WHERE m.garden_id = ? ${insider ? '' : 'AND m.joined = 1'} ORDER BY m.created_at`
-    ).bind(garden.id).all(),
+    ).bind(root.id).all(),
     env.DB.prepare(
       `SELECT i.id, i.title, i.body, i.date, i.lat, i.lon, i.done, i.updated_at,
          COALESCE(u.name, '') AS author, i.author_id = ? AS mine
        FROM garden_items i LEFT JOIN users u ON u.id = i.author_id
        WHERE i.garden_id = ? ORDER BY i.date, i.id LIMIT ?`
     ).bind(user ? user.id : -1, garden.id, ITEMS_MAX).all(),
+    env.DB.prepare(`SELECT ${SUMMARY} ${WITH_OWNER} WHERE g.parent_id = ? ORDER BY g.created_at, g.id`).bind(garden.id).all(),
   ]);
   return {
     garden: {
       id: garden.id, kind: garden.kind, title: garden.title, intro: garden.intro,
-      public: garden.public, owner: garden.owner, role,
+      public: root.public, owner: garden.owner, role,
+      root: root.id, depth: path.length + 1, canNest: path.length + 1 < DEPTH_MAX,
+      // 开这块小园地的人也能删它
+      created: !!(user && garden.parent_id && garden.created_by === user.id),
     },
+    path,
     members: members.results,
     items: items.results,
+    children: children.results,
   };
 }
 
@@ -120,17 +146,41 @@ async function save(env, body, user) {
   const now = Date.now();
   if (body.id) {
     const { garden, role } = await open(env, body.id, user);
-    needOwner(role);
-    await env.DB.prepare('UPDATE gardens SET title = ?, intro = ?, public = ?, updated_at = ? WHERE id = ?')
-      .bind(title, intro, pub, now, garden.id).run();
+    if (garden.parent_id) {
+      // 小园地：一起写的人都能改名字和介绍；公开与否跟着最外面那块
+      needWriter(role);
+      await env.DB.prepare('UPDATE gardens SET title = ?, intro = ?, updated_at = ? WHERE id = ?')
+        .bind(title, intro, now, garden.id).run();
+    } else {
+      needOwner(role);
+      await env.DB.prepare('UPDATE gardens SET title = ?, intro = ?, public = ?, updated_at = ? WHERE id = ?')
+        .bind(title, intro, pub, now, garden.id).run();
+    }
     return { id: garden.id };
   }
   if (!KINDS.includes(body.kind)) throw new ApiError(400, '不认识的园地种类');
-  const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM gardens WHERE owner_id = ?').bind(user.id).first();
-  if (n >= GARDENS_MAX) throw new ApiError(400, `每人最多开 ${GARDENS_MAX} 块园地`);
+  let ownerId = user.id;
+  let parentId = null;
+  if (body.parent) {
+    const { garden: parent, root, role, path } = await open(env, body.parent, user);
+    needWriter(role);
+    if (path.length + 1 >= DEPTH_MAX) throw new ApiError(400, `园中园最多 ${DEPTH_MAX} 层`);
+    const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM gardens WHERE parent_id = ?').bind(parent.id).first();
+    if (n >= CHILDREN_MAX) throw new ApiError(400, `一块园地里最多开 ${CHILDREN_MAX} 块小园地`);
+    ownerId = root.owner_id;
+    parentId = parent.id;
+  } else {
+    const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM gardens WHERE owner_id = ? AND parent_id IS NULL')
+      .bind(user.id).first();
+    if (n >= GARDENS_MAX) throw new ApiError(400, `每人最多开 ${GARDENS_MAX} 块园地`);
+  }
+  const { n: all } = await env.DB.prepare('SELECT COUNT(*) AS n FROM gardens WHERE owner_id = ?').bind(ownerId).first();
+  if (all >= ALL_GARDENS_MAX) throw new ApiError(400, `连小园地在内，最多 ${ALL_GARDENS_MAX} 块`);
   const row = await env.DB.prepare(
-    'INSERT INTO gardens (owner_id, kind, title, intro, public, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id'
-  ).bind(user.id, body.kind, title, intro, pub, now, now).first();
+    `INSERT INTO gardens (owner_id, parent_id, created_by, kind, title, intro, public, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+  ).bind(ownerId, parentId, user.id, body.kind, title, intro, parentId ? 0 : pub, now, now).first();
+  if (parentId) await touch(env, parentId);
   return { id: row.id };
 }
 
@@ -143,11 +193,22 @@ export function deleteGardens(env, where, value) {
   ];
 }
 
+// 删一块园地，连同里面的小园地和条目
+function deleteTree(env, id) {
+  return [
+    env.DB.prepare(`${TREE} DELETE FROM garden_items WHERE garden_id IN (SELECT id FROM tree)`).bind(id),
+    env.DB.prepare(`${TREE} DELETE FROM garden_members WHERE garden_id IN (SELECT id FROM tree)`).bind(id),
+    env.DB.prepare(`${TREE} DELETE FROM gardens WHERE id IN (SELECT id FROM tree)`).bind(id),
+  ];
+}
+
 async function remove(env, id, user) {
-  const { garden, role } = await open(env, id, user);
-  // 园主可以删掉公开的、不合适的园地
-  if (role !== 'owner' && !(garden.public && await isAdmin(env, user))) needOwner(role);
-  await env.DB.batch(deleteGardens(env, 'id = ?', garden.id));
+  const { garden, root, role } = await open(env, id, user);
+  // 主人都能删；开小园地的人能删自己开的；园主可以删掉公开的、不合适的园地
+  const creator = garden.parent_id && garden.created_by === user.id && role === 'member';
+  if (role !== 'owner' && !creator && !(root.public && await isAdmin(env, user))) needOwner(role);
+  await env.DB.batch(deleteTree(env, garden.id));
+  if (garden.parent_id) await touch(env, garden.parent_id);
   return { ok: true };
 }
 
@@ -155,7 +216,7 @@ async function saveItem(env, body, user) {
   const { garden, role } = await open(env, body.garden, user);
   needWriter(role);
   const title = text(body.title, ITEM_TITLE_MAX, '标题', true);
-  const note = text(body.body, ITEM_BODY_MAX, '内容');
+  const note = text(body.body, garden.kind === 'notes' ? NOTE_BODY_MAX : ITEM_BODY_MAX, '内容');
   const date = String(body.date || '');
   if (date && !validDate(date)) throw new ApiError(400, '日期不对');
   if (garden.kind === 'dates' && !date) throw new ApiError(400, '纪念日要填日期');
@@ -203,8 +264,9 @@ async function removeItem(env, id, user) {
   return { ok: true };
 }
 
+// 一起写的人记在最外面那块园地上，小园地跟着它
 async function invite(env, body, user) {
-  const { garden, role } = await open(env, body.id, user);
+  const { root: garden, role } = await open(env, body.id, user);
   needOwner(role);
   const name = String(body.name || '').trim();
   const guest = await env.DB.prepare('SELECT id, email FROM users WHERE name = ?').bind(name).first();
@@ -219,7 +281,7 @@ async function invite(env, body, user) {
 }
 
 async function answer(env, body, user) {
-  const { garden, role } = await open(env, body.id, user);
+  const { root: garden, role } = await open(env, body.id, user);
   if (role !== 'invited') throw new ApiError(400, '没有这个邀请');
   if (body.accept) {
     await env.DB.prepare('UPDATE garden_members SET joined = 1 WHERE garden_id = ? AND user_id = ?').bind(garden.id, user.id).run();
@@ -230,7 +292,7 @@ async function answer(env, body, user) {
 }
 
 async function removeMember(env, body, user) {
-  const { garden, role } = await open(env, body.id, user);
+  const { root: garden, role } = await open(env, body.id, user);
   if (!body.name || body.name === user.name) {
     if (role === 'owner') throw new ApiError(400, '主人不能退出，可以删掉整块园地');
     if (role === 'none') throw new ApiError(400, '你不在这块园地里');

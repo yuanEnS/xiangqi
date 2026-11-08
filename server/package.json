@@ -11,7 +11,8 @@
     "test:gomoku": "node test-gomoku.js",
     "test:accounts": "node test-accounts.js",
     "test:life": "node test-life.js",
-    "test:garden": "node test-garden.js"
+    "test:garden": "node test-garden.js",
+    "test:board": "node test-board-games.js"
   },
   "dependencies": {
     "ws": "^8.22.1"

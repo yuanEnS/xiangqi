@@ -2,10 +2,10 @@
 // 服务器保存权威棋局，客户端只有收到服务器确认后才落子，防止作弊。
 //
 // client 是一个带 send(obj) 方法的对象，由外层负责把 obj 序列化后发到 WebSocket。
-// 象棋和五子棋共用一套房间和匹配逻辑，match / create / join 带 game 字段区分（不带就是象棋）。
+// 象棋、五子棋、黑白棋、四子连珠、斗兽棋共用一套房间和匹配逻辑，match / create / join 带 game 字段区分（不带就是象棋）。
 //
 // 客户端 → 服务器：match {game} | cancel_match | create {game} | join {room, game}
-//                  move（象棋 {from, to}，五子棋 {at}）| resign | rematch | leave | ping
+//                  move（象棋 {from, to}，五子棋 {at}，网页上的新棋 {move}）| resign | rematch | leave | ping
 // 服务器 → 客户端：matching {online} | created {room} | start {color, room, matched, me, opponent}
 //                  move（同上）| over {winner, reason} | rematch_request
 //                  opponent_left | error {msg}
@@ -15,6 +15,10 @@
 
 const Xiangqi = require('../minigame/js/xiangqi.js');
 const Gomoku = require('../minigame/js/gomoku.js');
+// 网页上的新棋：规则文件和 gamesyuan.com/games/rules/ 里的是同一份
+const Othello = require('./rules/othello.js');
+const Connect4 = require('./rules/connect4.js');
+const Jungle = require('./rules/jungle.js');
 
 // 每种棋：先手方和后手方的颜色、怎么落子、广播给双方的走法内容
 const GAMES = {
@@ -32,6 +36,9 @@ const GAMES = {
     play: (game, msg) => game.move(msg.at),
     payload: msg => ({ at: msg.at }),
   },
+  othello: { name: '黑白棋', sides: ['b', 'w'], Game: Othello.Game, play: (game, msg) => game.move(msg.move), payload: msg => ({ move: msg.move }) },
+  connect4: { name: '四子连珠', sides: ['r', 'y'], Game: Connect4.Game, play: (game, msg) => game.move(msg.move), payload: msg => ({ move: msg.move }) },
+  jungle: { name: '斗兽棋', sides: ['r', 'b'], Game: Jungle.Game, play: (game, msg) => game.move(msg.move), payload: msg => ({ move: msg.move }) },
 };
 
 function kindOf(msg) {
@@ -48,7 +55,7 @@ class Lobby {
   constructor({ onResult } = {}) {
     this.onResult = onResult;
     this.rooms = new Map(); // 房间号 -> { code, kind, players: { 颜色: client }, game, rematch, matched }
-    this.queues = { xiangqi: [], gomoku: [] }; // 每种棋各自排队匹配
+    this.queues = Object.fromEntries(Object.keys(GAMES).map(kind => [kind, []])); // 每种棋各自排队匹配
     this.clients = new Set();
   }
 

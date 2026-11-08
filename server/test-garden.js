@@ -96,6 +96,34 @@ async function signIn(email) {
   check((await api('/garden/delete', { id: days.id }, owner)).ok, '主人能删园地');
   check((await api(`/garden/view?id=${days.id}`, undefined, owner)).status === 404, '删掉后就没了');
 
+  // 「其他」园地和园中园
+  const notes = await api('/garden/save', { kind: 'notes', title: '我们的书房' }, owner);
+  check(notes.id > 0, '能开自己起名的「其他」园地');
+  check((await api('/garden/item', { garden: notes.id, title: '长文', body: '字'.repeat(12000) }, owner)).id > 0, '「其他」园地能写长文章');
+  await api('/garden/invite', { id: notes.id, name: friendName }, owner);
+  await api('/garden/answer', { id: notes.id, accept: true }, friend);
+  const sub = await api('/garden/save', { parent: notes.id, kind: 'travel', title: '欧洲' }, friend);
+  check(sub.id > 0, '一起写的人能在园地里开小园地');
+  check((await api('/garden/save', { parent: notes.id, kind: 'wish', title: '偷开' }, stranger)).status === 404, '路人不能开小园地');
+  const subView = await api(`/garden/view?id=${sub.id}`, undefined, friend);
+  check(subView.garden.role === 'member' && subView.path[0].id === notes.id, '小园地跟着外层的身份，带着路径');
+  check((await api(`/garden/view?id=${notes.id}`, undefined, owner)).children.some(g => g.id === sub.id), '外层园地列出小园地');
+  check(!(await api('/garden/list', undefined, owner)).list.some(g => g.id === sub.id), '小园地不出现在私人园的列表里');
+  check((await api(`/garden/view?id=${sub.id}`, undefined, stranger)).status === 404, '外层不公开，小园地路人也看不到');
+  const deep = await api('/garden/save', { parent: sub.id, kind: 'dates', title: '第三层' }, owner);
+  check(deep.id > 0, '能开第三层');
+  check((await api('/garden/save', { parent: deep.id, kind: 'wish', title: '第四层' }, owner)).status === 400, '最多三层');
+  check((await api('/garden/item', { garden: deep.id, title: '出发', date: '2024-07-01' }, friend)).id > 0, '一起写的人能往深层写');
+  await api('/garden/save', { id: notes.id, title: '我们的书房', public: true }, owner);
+  check((await api(`/garden/view?id=${deep.id}`)).garden.public === 1, '外层公开后小园地也公开');
+  check((await api('/garden/save', { id: sub.id, title: '欧洲之旅' }, friend)).id === sub.id, '一起写的人能改小园地的名字');
+  check((await api('/garden/delete', { id: deep.id }, friend)).status === 403, '一起写的人不能删别人开的小园地');
+  check((await api('/garden/delete', { id: sub.id }, friend)).ok, '开小园地的人能删它，连里面的一起');
+  check((await api(`/garden/view?id=${deep.id}`, undefined, owner)).status === 404, '里面的小园地也删掉了');
+  const sub2 = await api('/garden/save', { parent: notes.id, kind: 'wish', title: '再开一块' }, owner);
+  check((await api('/garden/delete', { id: notes.id }, owner)).ok, '主人删外层园地');
+  check((await api(`/garden/view?id=${sub2.id}`, undefined, owner)).status === 404, '删外层会连小园地一起删');
+
   await api('/garden/invite', { id: wish.id, name: friendName }, owner);
   await api('/garden/answer', { id: wish.id, accept: true }, friend);
   const left = await api('/garden/item', { garden: wish.id, title: '注销前写的' }, friend);

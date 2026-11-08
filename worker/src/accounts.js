@@ -14,7 +14,7 @@ import { gardenRoute, deleteGardens } from './garden.js';
 const { START, ratingDelta } = ratingModule;
 const { verifyGoogleToken } = googleModule;
 
-const GAMES = ['xiangqi', 'gomoku'];
+const GAMES = ['xiangqi', 'gomoku', 'othello', 'connect4', 'jungle'];
 const DAY = 86400000;
 const SESSION_MS = 365 * DAY;
 const CODE_MS = 10 * 60000;

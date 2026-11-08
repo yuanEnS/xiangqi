@@ -145,7 +145,7 @@ GitHub Pages 只能放静态网页，联网对战还需要一个 `wss://` 服务
 
 4. 提交并推送。GitHub Pages 更新后，首页就会出现「快速匹配」「创建房间」「加入房间」。
 
-在浏览器里打开 Worker 地址，看到「象棋联网服务器运行中」就说明部署成功了。象棋和五子棋共用这一个服务器，客户端连接时用 `game` 字段区分。
+在浏览器里打开 Worker 地址，看到「象棋联网服务器运行中」就说明部署成功了。象棋、五子棋、黑白棋、四子连珠、斗兽棋共用这一个服务器，客户端连接时用 `game` 字段区分。
 
 **本地调试**：
 
@@ -222,11 +222,22 @@ npm start
 - 步时和局时
 - 长将、长捉判负，以及求和
 
+## 网页上的其他小游戏
+
+`gamesyuan.com` 上还有九个网页小游戏，都是普通网页，放在首页仓库 `yuanEnS.github.io` 里，不经过 `web/build.js`：
+
+- 两人对弈，可以人机（三档难度）、双人、联网：黑白棋 `/heibai/`、四子连珠 `/sizi/`、斗兽棋 `/doushou/`；
+- 单人：华容道 `/huarong/`、数独 `/shudu/`、扫雷 `/saolei/`、24 点 `/24dian/`、诗词填字 `/shici/`、成语接龙 `/chengyu/`。
+
+三个对弈棋的规则在本仓库 `server/rules/`（othello.js、connect4.js、jungle.js），服务器（`server/lobby.js`）用它检查每一步，网页用同一份显示和计算。改了规则后运行 `node tools/copy-rules.js` 复制到首页仓库的 `games/rules/`，再部署 Worker。快速匹配同样计积分（`worker/src/accounts.js` 的 `GAMES`），不用改数据库。自测：`cd server && npm run test:board`（规则、联网房间，以及两边的规则文件是否一致）。
+
+共用的页面代码在首页仓库 `games/kit/`：规则说明弹窗、「人机 / 双人 / 联网」流程、每日一题的随机种子，还有黑白屏模式：墨水屏或在象棋里选过「黑白」主题时自动打开，每个游戏标题栏也有「黑白」开关。
+
 ## 生活园
 
 页面在 yuanEnS.github.io 仓库的 `life/`，接口在 `worker/src/life.js`，文章存在 D1 的 `posts` 表。有邮箱的正式账号都能写，每人每天发布一篇（北京时间，记在 `life_days`），游客账号不能写。`LIFE_ADMIN_EMAIL_HASH`（邮箱的 SHA-256）对应的园主还能修改、删除别人已发布的文章。发布时可以选择把大致位置（取整到半度）存进 `life_places`，用来画地图。文章可以带版权声明（`rights`），也可以只给自己看（`hidden`）。
 
-私人园里的园地（心愿单、旅行地图、纪念日）在 `worker/src/garden.js`，表是 `gardens`、`garden_members`、`garden_items`。园地默认只有主人和受邀的人能看，主人可以改成公开；主人按昵称邀请，对方答应后能添加和修改条目，只能删自己写的。自测：先 `cd worker && npm run dev`，再 `cd server && npm run test:life` 和 `node test-garden.js`。
+私人园里的园地（心愿单、旅行地图、纪念日，还有自己起名、写文章的「其他」）在 `worker/src/garden.js`，表是 `gardens`、`garden_members`、`garden_items`。园地默认只有主人和受邀的人能看，主人可以改成公开；主人按昵称邀请，对方答应后能添加和修改条目，只能删自己写的。园地里还能开小园地，最多三层（`gardens.parent_id`）；小园地的成员和公开与否都跟着最外面那块。自测：先 `cd worker && npm run dev`，再 `cd server && npm run test:life` 和 `node test-garden.js`。
 
 ## 账号、积分和排行榜（只有网页版）
 
