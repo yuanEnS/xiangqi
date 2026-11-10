@@ -3,6 +3,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import lobbyModule from '../../server/lobby.js';
 import { connectUser, handleApi, recordResult } from './accounts.js';
+import { lifeSitemap, apiRobots } from './seo.js';
 
 const { Lobby } = lobbyModule;
 
@@ -78,7 +79,15 @@ export class LobbyObject extends DurableObject {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/api/')) return handleApi(request, env, url);
+    if (url.pathname.startsWith('/api/')) {
+      // 接口返回的 JSON 不要进搜索结果
+      const res = await handleApi(request, env, url);
+      const headers = new Headers(res.headers);
+      headers.set('X-Robots-Tag', 'noindex');
+      return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+    }
+    if (url.pathname === '/sitemap-life.xml') return lifeSitemap(env);
+    if (url.pathname === '/robots.txt') return apiRobots();
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('象棋联网服务器运行中', { headers: { 'content-type': 'text/plain; charset=utf-8' } });
     }
