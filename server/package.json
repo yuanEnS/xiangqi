@@ -12,7 +12,8 @@
     "test:accounts": "node test-accounts.js",
     "test:life": "node test-life.js",
     "test:garden": "node test-garden.js",
-    "test:board": "node test-board-games.js"
+    "test:board": "node test-board-games.js",
+    "test:comments": "node test-comments.js"
   },
   "dependencies": {
     "ws": "^8.22.1"

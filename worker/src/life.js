@@ -7,7 +7,9 @@
 //   POST /api/life/save {id?, title, date, tags, body, draft, place, rights, public}
 // 草稿和不公开的文章只有作者自己能看，园主也看不到
 //   POST /api/life/delete {id}
+// 评论的接口 /api/life/comments… 在 comments.js
 import { ApiError, sha256 } from './accounts.js';
+import { commentsRoute } from './comments.js';
 
 const TITLE_MAX = 100;
 const TAGS_MAX = 100;
@@ -165,7 +167,11 @@ async function remove(env, id, user, admin) {
   const post = await env.DB.prepare('SELECT author_id, draft, hidden FROM posts WHERE id = ?').bind(id).first();
   if (!post) return { ok: true };
   if (!canEdit(post, user, admin)) throw new ApiError(403, '这篇文章不是你写的');
-  await env.DB.prepare('DELETE FROM posts WHERE id = ?').bind(id).run();
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM comment_reports WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?)').bind(id),
+    env.DB.prepare('DELETE FROM comments WHERE post_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM posts WHERE id = ?').bind(id),
+  ]);
   return { ok: true };
 }
 
@@ -188,6 +194,7 @@ async function map(env) {
 }
 
 export async function lifeRoute(env, key, url, body, user, cf) {
+  if (url.pathname.startsWith('/api/life/comments')) return commentsRoute(env, key, url, body, user);
   const admin = await isAdmin(env, user);
   const needWriter = () => {
     if (!user) throw new ApiError(401, '请先登录');
