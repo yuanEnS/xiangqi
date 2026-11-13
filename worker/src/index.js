@@ -4,6 +4,7 @@ import { DurableObject } from 'cloudflare:workers';
 import lobbyModule from '../../server/lobby.js';
 import { connectUser, handleApi, recordResult } from './accounts.js';
 import { lifeSitemap, apiRobots } from './seo.js';
+import { searchPage } from './search.js';
 
 const { Lobby } = lobbyModule;
 
@@ -86,6 +87,7 @@ export default {
       headers.set('X-Robots-Tag', 'noindex');
       return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
     }
+    if (url.pathname === '/search') return searchPage(request, env);
     if (url.pathname === '/sitemap-life.xml') return lifeSitemap(env);
     if (url.pathname === '/robots.txt') return apiRobots();
     if (request.headers.get('Upgrade') !== 'websocket') {

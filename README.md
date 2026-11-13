@@ -239,6 +239,18 @@ npm start
 
 私人园里的园地（心愿单、旅行地图、纪念日，还有自己起名、写文章的「其他」）在 `worker/src/garden.js`，表是 `gardens`、`garden_members`、`garden_items`。园地默认只有主人和受邀的人能看，主人可以改成公开；主人按昵称邀请，对方答应后能添加和修改条目，只能删自己写的。园地里还能开小园地，最多三层（`gardens.parent_id`）；小园地的成员和公开与否都跟着最外面那块。自测：先 `cd worker && npm run dev`，再 `cd server && npm run test:life` 和 `node test-garden.js`。
 
+## 全站搜索
+
+`api.gamesyuan.com/search?q=关键词` 直接返回 HTML 结果页（不用 JavaScript，Kindle 也能用），首页、阅读园、研究园上的搜索框都提交到这里。
+搜的是阅读园每本书的正文（中文书按简体）、研究园的期刊文章和经典书籍，数据在 D1 的 `search_docs` 表（`worker/src/search.js`、迁移 0009）。
+
+网站内容更新以后（加了书、更新了期刊文章），重新生成并导入搜索数据（会先清空旧数据）：
+
+```bash
+python3 tools/search/build.py
+cd worker && npx wrangler d1 execute gamesyuan --remote --file <上一步打印的 SQL 文件>
+```
+
 ## 账号、积分和排行榜（只有网页版）
 
 账号页面是 gamesyuan.com/account/（在 yuanEnS.github.io 仓库里），接口和数据库都在 `worker/`：
