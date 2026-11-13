@@ -5,6 +5,7 @@ import lobbyModule from '../../server/lobby.js';
 import { connectUser, handleApi, recordResult } from './accounts.js';
 import { lifeSitemap, apiRobots } from './seo.js';
 import { searchPage } from './search.js';
+import { litePage } from './lite.js';
 
 const { Lobby } = lobbyModule;
 
@@ -88,6 +89,7 @@ export default {
       return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
     }
     if (url.pathname === '/search') return searchPage(request, env);
+    if (url.pathname.startsWith('/life/lite')) return litePage(request, env);
     if (url.pathname === '/sitemap-life.xml') return lifeSitemap(env);
     if (url.pathname === '/robots.txt') return apiRobots();
     if (request.headers.get('Upgrade') !== 'websocket') {

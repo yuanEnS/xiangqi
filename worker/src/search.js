@@ -1,13 +1,14 @@
 // 全站搜索：GET /search?q=关键词&in=all|reading|research&page=1
 // 直接返回 HTML 页面（不是 JSON），不用 JavaScript，Kindle 等老浏览器也能用。
-// 数据在 D1 的 search_docs 表，由 tools/search/build.py 生成后导入。中文按字匹配，用 LIKE 扫全表（几千行，很快）。
+// 阅读园、研究园的数据在 D1 的 search_docs 表，由 tools/search/build.py 生成后导入；
+// 世界园直接搜 posts 表里公开的文章（草稿、仅自己可见的不搜），发了就能搜到。中文按字匹配，用 LIKE 扫全表。
 import { overLimit, sha256 } from './accounts.js';
 
 const PER_PAGE = 20;
 const MAX_ROWS = 600;
 const QUERY_MAX = 40;
-const SCOPES = { all: '全部', reading: '阅读园', research: '研究园' };
-const KINDS = { book: '书', chapter: '章节', paper: '期刊文章' };
+const SCOPES = { all: '全部', life: '世界园', reading: '阅读园', research: '研究园' };
+const KINDS = { book: '书', chapter: '章节', paper: '期刊文章', post: '文章' };
 
 function esc(text) {
   return String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -52,7 +53,7 @@ function pageHtml({ q, scope, body, site }) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>${q ? `${esc(q)} · ` : ''}搜索 | gamesyuan</title>${STYLE}</head><body>
-<p class="nav"><a href="${site}/">首页</a><a href="${site}/reading/">阅读园</a><a href="${site}/research/">研究园</a></p>
+<p class="nav"><a href="${site}/">首页</a><a href="${site}/life/world/">世界园</a><a href="${site}/reading/">阅读园</a><a href="${site}/research/">研究园</a></p>
 <h1>搜索</h1>
 <form action="/search" method="get">
 <input type="search" name="q" value="${esc(q)}" maxlength="${QUERY_MAX}" placeholder="书名、作者、正文里的词，比如 黛玉、Sherlock、causal" aria-label="搜索">
@@ -61,6 +62,24 @@ function pageHtml({ q, scope, body, site }) {
 </form>
 ${body}
 </body></html>`;
+}
+
+// 世界园：公开的文章
+async function searchPosts(env, q, like) {
+  const { results } = await env.DB.prepare(
+    `SELECT p.id, p.title, p.date, COALESCE(u.name, '园主') AS author,
+       (length(p.body) - length(replace(lower(p.body), lower(?1), ''))) / length(?1) AS hits,
+       substr(p.body, max(1, instr(lower(p.body), lower(?1)) - 45), 130) AS snip,
+       instr(lower(p.body), lower(?1)) AS pos,
+       p.title LIKE ?2 ESCAPE '\\' AS in_title
+     FROM posts p LEFT JOIN users u ON u.id = p.author_id
+     WHERE p.draft = 0 AND p.hidden = 0 AND (p.body LIKE ?2 ESCAPE '\\' OR p.title LIKE ?2 ESCAPE '\\')
+     ORDER BY p.date DESC LIMIT 200`
+  ).bind(q, like).all();
+  return results.map(r => ({
+    site: 'life', kind: 'post', title: r.title, sub: `${r.author} · ${r.date}`, url: `/life/post/?id=${r.id}`, lite: `/life/lite/post?id=${r.id}`,
+    part: 0, hits: r.hits, snip: r.snip, pos: r.pos, in_title: r.in_title,
+  }));
 }
 
 export async function searchPage(request, env) {
@@ -75,7 +94,7 @@ export async function searchPage(request, env) {
   });
 
   if (!q) {
-    return respond('<p class="note">可以搜阅读园里每本书的正文（中文书按简体搜），和研究园的期刊文章、经典书籍。'
+    return respond('<p class="note">可以搜世界园的公开文章、阅读园里每本书的正文（中文书按简体搜），和研究园的期刊文章、经典书籍。'
       + '关键词越具体越好，比如人名、地名、术语。</p>');
   }
   const ip = request.headers.get('CF-Connecting-IP') || 'local';
@@ -85,7 +104,9 @@ export async function searchPage(request, env) {
 
   const like = '%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%';
   const where = scope === 'all' ? '' : 'AND site = ?3';
-  const { results } = await env.DB.prepare(
+  const results = [];
+  if (scope === 'all' || scope === 'life') results.push(...await searchPosts(env, q, like));
+  if (scope !== 'life') results.push(...(await env.DB.prepare(
     `SELECT site, kind, title, sub, url, part,
        (length(body) - length(replace(lower(body), lower(?1), ''))) / length(?1) AS hits,
        substr(body, max(1, instr(lower(body), lower(?1)) - 45), 130) AS snip,
@@ -93,7 +114,7 @@ export async function searchPage(request, env) {
        title LIKE ?2 ESCAPE '\\' AS in_title
      FROM search_docs WHERE (body LIKE ?2 ESCAPE '\\' OR title LIKE ?2 ESCAPE '\\') ${where}
      LIMIT ${MAX_ROWS}`
-  ).bind(q, like, ...(scope === 'all' ? [] : [scope])).all();
+  ).bind(q, like, ...(scope === 'all' ? [] : [scope])).all()).results);
 
   // 同一章切成的几段合并成一条
   const byUrl = new Map();
@@ -106,7 +127,7 @@ export async function searchPage(request, env) {
       byUrl.set(row.url, { ...row, snip: row.pos ? row.snip : '' });
     }
   }
-  const order = { book: 0, paper: 1, chapter: 2 };
+  const order = { book: 0, post: 1, paper: 2, chapter: 3 };
   const items = [...byUrl.values()].sort((a, b) =>
     b.in_title - a.in_title || order[a.kind] - order[b.kind] || b.hits - a.hits);
   const total = items.length;
@@ -115,8 +136,11 @@ export async function searchPage(request, env) {
     return respond(`<p class="note">没有找到「${esc(q)}」。可以换个说法，或者少打几个字；中文书请用简体字搜。</p>`);
   }
   const link = path => (/^https?:/.test(path) ? path : site + path);
-  const list = shown.map(item => `<div class="hit"><h2><a href="${esc(link(item.url))}">${mark(item.title, q)}</a></h2>
-<p class="meta"><span class="tag">${SCOPES[item.site]} · ${KINDS[item.kind]}</span>${esc(item.sub)}${item.hits > 1 ? ` · 出现 ${item.hits} 次` : ''}</p>
+  // Kindle 等阅读器打不开网页版的生活园文章，直接链到这台服务器上的简易版
+  const reader = /Kindle|Silk|PocketBook|Kobo|BOOX|Onyx/i.test(request.headers.get('User-Agent') || '');
+  const target = item => (item.lite && reader ? item.lite : link(item.url));
+  const list = shown.map(item => `<div class="hit"><h2><a href="${esc(target(item))}">${mark(item.title, q)}</a></h2>
+<p class="meta"><span class="tag">${SCOPES[item.site]} · ${KINDS[item.kind]}</span>${esc(item.sub)}${item.hits > 1 ? ` · 出现 ${item.hits} 次` : ''}${item.lite && !reader ? ` · <a href="${esc(item.lite)}">简易版</a>` : ''}</p>
 ${item.snip ? `<p class="snip">…${mark(item.snip, q)}…</p>` : ''}</div>`).join('\n');
   const more = results.length >= MAX_ROWS ? '（结果太多，只列出了一部分，换个更具体的词试试）' : '';
   const params = p => `/search?q=${encodeURIComponent(q)}&in=${scope}&page=${p}`;
