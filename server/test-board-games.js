@@ -1,9 +1,10 @@
-// 网页新棋（黑白棋、四子连珠、斗兽棋）的规则和联网房间自测：node test-board-games.js
+// 网页新棋（黑白棋、四子连珠、斗兽棋、成语接龙）的规则和联网房间自测：node test-board-games.js
 const fs = require('fs');
 const path = require('path');
 const Othello = require('./rules/othello.js');
 const Connect4 = require('./rules/connect4.js');
 const Jungle = require('./rules/jungle.js');
+const Chengyu = require('./rules/chengyu.js');
 const { Lobby } = require('./lobby.js');
 
 function check(cond, label) {
@@ -92,6 +93,36 @@ function check(cond, label) {
   check(start.legalMoves().length > 0 && start.board[6][0].rank === 8 && start.board[2][6].rank === 8, '开局摆放对称');
 }
 
+// ---------- 成语接龙 ----------
+{
+  const g = new Chengyu.Game({ start: '一心一意' });
+  check(g.start === '一心一意' && g.need().char === '意' && g.turn === 'a', '按 setup 的成语开局');
+  check(g.problem('三心二意') === '要用「意」开头', '开头的字不对不能接');
+  check(Chengyu.SET.has('勃然大怒') && Chengyu.SET.has('天壤之别') && Chengyu.LIST.length > 20000, '词库够大，有勃然大怒、天壤之别');
+  check(g.problem('意气') === '要四个字的成语', '不是四个字不能接');
+  check(g.problem('意意意意').includes('不在词库里'), '词库外的词不算');
+  const word = g.options()[0];
+  check(g.move(word) && g.turn === 'b' && g.last() === word, '接上以后轮到对方');
+  const back = new Chengyu.Game({ start: '风卷残云' });
+  check(!new Chengyu.Game({ start: '不是成语' }).start.includes('不是'), '开局的成语不在词库里就重新挑');
+  // 接完以后对方无词可接，直接赢：找一个最后一个字在词库里没有开头的成语
+  const none = new Set();
+  const dead = Chengyu.LIST.find(w => !Chengyu.options(w, none).length && Chengyu.LIST.some(v => v[3] === w[0] && v !== w));
+  const before = Chengyu.LIST.find(v => v[3] === dead[0] && v !== dead);
+  if (dead && before) {
+    const s = new Chengyu.Game({ start: before });
+    check(s.move(dead) && s.winner === 'a' && s.reason === 'stuck', '对方无词可接时直接获胜');
+  }
+  check(back.start === '风卷残云', '词库里的开局成语照用');
+  // 同音：一心一意（yì）后面能接「义」「亿」开头的，同音同调不能接「一 yī」
+  const yin = new Chengyu.Game({ start: '一心一意', rule: 'yin' });
+  check(yin.rule === 'yin' && !yin.problem('义不容辞') && !yin.problem('一帆风顺') && yin.problem('三心二意'), '同音：声调不同也能接，读音不同不行');
+  const diao = new Chengyu.Game({ start: '一心一意', rule: 'diao' });
+  check(!diao.problem('义不容辞') && diao.problem('一帆风顺') === '要用读 yì 的字开头', '同音同调：声调要相同');
+  check(new Chengyu.Game({ start: '一心一意', rule: 'zi' }).problem('义不容辞') === '要用「意」开头', '同字：同音字不行');
+  check(Chengyu.pretty('nv3') === 'nǚ' && Chengyu.pretty('gui4') === 'guì' && Chengyu.pretty('liu2') === 'liú', '拼音声调标在对的字母上');
+}
+
 // ---------- 联网房间 ----------
 {
   const sent = [];
@@ -129,11 +160,56 @@ function check(cond, label) {
   check(!f.inbox.some(m => m.t === 'start'), '不同棋种不会配到一起');
 }
 
+// ---------- 成语接龙联网 ----------
+{
+  const client = name => ({ name, inbox: [], send(msg) { this.inbox.push(msg); } });
+  const lobby = new Lobby();
+  const a = client('a'), b = client('b');
+  lobby.connect(a);
+  lobby.connect(b);
+  lobby.message(a, { t: 'match', game: 'chengyu' });
+  lobby.message(b, { t: 'match', game: 'chengyu' });
+  const sa = a.inbox.find(m => m.t === 'start'), sb = b.inbox.find(m => m.t === 'start');
+  check(sa && sb && sa.setup.start === sb.setup.start && sa.turnMs === 60000, '双方开局的成语一样，带步时');
+  const first = sa.color === 'a' ? a : b, second = first === a ? b : a;
+  const game = new Chengyu.Game(sa.setup);
+  lobby.message(first, { t: 'move', move: '意意意意' });
+  check(first.inbox.some(m => m.t === 'error' && m.msg === '走法不合法'), '服务器拒绝词库外的词');
+  // 挑一个对方还能接的，免得一步就无词可接直接结束
+  const word = game.options().find(w => Chengyu.options(w, new Set([game.start, w])).length > 1);
+  lobby.message(first, { t: 'move', move: word });
+  check(second.inbox.some(m => m.t === 'move' && m.move === word), '接的成语广播给对手');
+  lobby.message(first, { t: 'timeout' });
+  check(!first.inbox.some(m => m.t === 'over'), '没到时间报超时不算');
+  const room = first.room;
+  room.turnAt -= 61000;
+  lobby.message(first, { t: 'timeout' });
+  check(first.inbox.some(m => m.t === 'over' && m.reason === 'timeout' && m.winner === 'a'), '超时判没超时的一方赢');
+  lobby.message(a, { t: 'rematch' });
+  lobby.message(b, { t: 'rematch' });
+  const again = a.inbox.filter(m => m.t === 'start');
+  check(again.length === 2 && again[1].color !== again[0].color, '再来一局交换先后');
+  const c = client('c'), d = client('d'), e = client('e');
+  [c, d, e].forEach(x => lobby.connect(x));
+  lobby.message(c, { t: 'match', game: 'chengyu', variant: 'yin' });
+  lobby.message(d, { t: 'match', game: 'chengyu', variant: 'zi' });
+  check(!c.inbox.some(m => m.t === 'start'), '接法不同的不会配到一起');
+  lobby.message(e, { t: 'match', game: 'chengyu', variant: 'yin' });
+  const se = e.inbox.find(m => m.t === 'start');
+  check(se && se.setup.rule === 'yin' && c.inbox.some(m => m.t === 'start'), '同音接法能配对，开局带接法');
+  lobby.message(d, { t: 'create', game: 'chengyu', variant: 'diao' });
+  const code = d.inbox.find(m => m.t === 'created').room;
+  const f = client('f');
+  lobby.connect(f);
+  lobby.message(f, { t: 'join', room: code, game: 'chengyu' });
+  check(f.inbox.find(m => m.t === 'start').setup.rule === 'diao', '加入房间按房主选的接法');
+}
+
 // ---------- 网站仓库里的规则和这里一样 ----------
 {
   const site = path.join(__dirname, '..', '..', 'yuanEnS.github.io', 'games', 'rules');
   if (fs.existsSync(site)) {
-    for (const name of ['othello.js', 'connect4.js', 'jungle.js']) {
+    for (const name of ['othello.js', 'connect4.js', 'jungle.js', 'chengyu.js', 'chengyu-words.js']) {
       const same = fs.readFileSync(path.join(__dirname, 'rules', name), 'utf8') === fs.readFileSync(path.join(site, name), 'utf8');
       check(same, `网站上的 ${name} 和服务器一致（不一致就运行 node tools/copy-rules.js）`);
     }
