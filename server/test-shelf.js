@@ -37,7 +37,9 @@ async function signIn(email) {
   const done = await api('/shelf/save', { item: paper.item, status: 'done', note: '回归调整的统一框架，\n第三节值得再看。' }, me);
   check(done.item.status === 'done' && done.item.done_at > 0 && done.item.note.includes('第三节'), '标「读完」记下时间，写笔记');
   check((await api('/shelf/save', { item: paper.item, status: 'bad' }, me)).status === 400, '不认识的状态被拒绝');
-  check((await api('/shelf/save', { item: paper.item, note: '长'.repeat(301) }, me)).status === 400, '笔记超过 300 字被拒绝');
+  check((await api('/shelf/save', { item: paper.item, note: '长'.repeat(601) }, me)).status === 400, '笔记超过 600 字被拒绝');
+  const tex = await api('/shelf/save', { item: paper.item, note: '方差 $\\operatorname{Var}(\\hat\\tau)$ 更小' }, me);
+  check(tex.item.note.includes('\\hat\\tau'), 'LaTeX 公式原样存下');
   check((await api('/shelf/save', { item: 'x', title: 't', link: 'javascript:alert(1)', starred: true }, me)).status === 400, '奇怪的链接被拒绝');
   check((await api('/shelf/save', { item: 'nothing', starred: true }, me)).status === 400, '新条目要有标题');
 

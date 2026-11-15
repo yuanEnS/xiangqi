@@ -7,7 +7,7 @@
 import { ApiError, overLimit } from './accounts.js';
 
 const MAX_ITEMS = 5000;
-const NOTE_MAX = 300;
+const NOTE_MAX = 600; // 笔记可以写 LaTeX 公式，比较占字数
 const STATUSES = ['want', 'reading', 'done'];
 
 function text(value, max, label) {
