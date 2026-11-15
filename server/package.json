@@ -14,7 +14,8 @@
     "test:garden": "node test-garden.js",
     "test:board": "node test-board-games.js",
     "test:comments": "node test-comments.js",
-    "test:shelf": "node test-shelf.js"
+    "test:shelf": "node test-shelf.js",
+    "test:dates": "node test-dates.js"
   },
   "dependencies": {
     "ws": "^8.22.1"

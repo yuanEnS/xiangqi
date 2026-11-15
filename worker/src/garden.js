@@ -5,12 +5,15 @@
 //   GET  /api/garden/view?id=1              一块园地、一起写的人和全部条目
 //   POST /api/garden/save {id?, parent?, kind, title, intro, public}   带 parent 是在那块园地里开小园地
 //   POST /api/garden/delete {id}
-//   POST /api/garden/item {garden, id?, title, body, date, lat, lon, done}
+//   POST /api/garden/item {garden, id?, title, body, date, lat, lon, done, date_type?, lunar?}
+//        纪念日园地：date_type 是 anniversary 纪念日 / birthday 生日，lunar 为真按农历过（date 是当初那天的阳历）
+//   POST /api/garden/remind {item, days}    给纪念日园地的一条设邮件提醒，提前 days 天（0 是当天），days 为空就取消
 //   POST /api/garden/item/delete {id}
 //   POST /api/garden/invite {id, name}      主人按昵称邀请
 //   POST /api/garden/answer {id, accept}    受邀的人答应或拒绝
 //   POST /api/garden/remove {id, name?}     主人请人离开；不带 name 是自己退出
 //   GET  /api/garden/geo?q=地名             搜城市或地点，给旅行地图用（转发 OpenStreetMap Nominatim）
+import { setReminder } from './dates.js';
 import { ApiError, overLimit } from './accounts.js';
 import { isAdmin, validDate } from './life.js';
 
@@ -50,6 +53,10 @@ function text(value, max, label, required = false) {
 
 // 我在这块园地里的身份：owner 主人、member 一起写、invited 收到邀请还没答应、none 路人。
 // 小园地往上找到最外面那块（root），身份和公开与否都看它；path 是从最外面到上一层的园地
+export async function openGarden(env, id, user) {
+  return open(env, id, user);
+}
+
 async function open(env, id, user) {
   const garden = await env.DB.prepare(`SELECT g.*, u.name AS owner ${WITH_OWNER} WHERE g.id = ?`).bind(Number(id) || 0).first();
   if (!garden) throw new ApiError(404, '这块园地不存在');
@@ -117,11 +124,12 @@ async function view(env, id, user) {
        WHERE m.garden_id = ? ${insider ? '' : 'AND m.joined = 1'} ORDER BY m.created_at`
     ).bind(root.id).all(),
     env.DB.prepare(
-      `SELECT i.id, i.title, i.body, i.date, i.lat, i.lon, i.done, i.updated_at,
-         COALESCE(u.name, '') AS author, i.author_id = ? AS mine
+      `SELECT i.id, i.title, i.body, i.date, i.lat, i.lon, i.done, i.updated_at, i.date_type, i.lunar,
+         COALESCE(u.name, '') AS author, i.author_id = ? AS mine,
+         (SELECT r.days FROM date_reminders r WHERE r.item_id = i.id AND r.user_id = ?) AS remind
        FROM garden_items i LEFT JOIN users u ON u.id = i.author_id
        WHERE i.garden_id = ? ORDER BY i.date, i.id LIMIT ?`
-    ).bind(user ? user.id : -1, garden.id, ITEMS_MAX).all(),
+    ).bind(user ? user.id : -1, user ? user.id : -1, garden.id, ITEMS_MAX).all(),
     env.DB.prepare(`SELECT ${SUMMARY} ${WITH_OWNER} WHERE g.parent_id = ? ORDER BY g.created_at, g.id`).bind(garden.id).all(),
   ]);
   return {
@@ -196,6 +204,7 @@ export function deleteGardens(env, where, value) {
 // 删一块园地，连同里面的小园地和条目
 function deleteTree(env, id) {
   return [
+    env.DB.prepare(`${TREE} DELETE FROM date_reminders WHERE item_id IN (SELECT id FROM garden_items WHERE garden_id IN (SELECT id FROM tree))`).bind(id),
     env.DB.prepare(`${TREE} DELETE FROM garden_items WHERE garden_id IN (SELECT id FROM tree)`).bind(id),
     env.DB.prepare(`${TREE} DELETE FROM garden_members WHERE garden_id IN (SELECT id FROM tree)`).bind(id),
     env.DB.prepare(`${TREE} DELETE FROM gardens WHERE id IN (SELECT id FROM tree)`).bind(id),
@@ -231,22 +240,25 @@ async function saveItem(env, body, user) {
     lon = Math.round(lon * 100) / 100;
   }
   const done = garden.kind === 'wish' && body.done ? 1 : 0;
+  // 纪念日园地：这一条是纪念日还是生日、按不按农历过（农历的 date 存当初那天的阳历日期）
+  const dateType = garden.kind === 'dates' && body.date_type === 'birthday' ? 'birthday' : 'anniversary';
+  const lunar = garden.kind === 'dates' && body.lunar ? 1 : 0;
   const now = Date.now();
 
   let row;
   if (body.id) {
     row = await env.DB.prepare(
-      `UPDATE garden_items SET title = ?, body = ?, date = ?, lat = ?, lon = ?, done = ?, updated_at = ?
+      `UPDATE garden_items SET title = ?, body = ?, date = ?, lat = ?, lon = ?, done = ?, date_type = ?, lunar = ?, updated_at = ?
        WHERE id = ? AND garden_id = ? RETURNING id`
-    ).bind(title, note, date, lat, lon, done, now, body.id, garden.id).first();
+    ).bind(title, note, date, lat, lon, done, dateType, lunar, now, body.id, garden.id).first();
     if (!row) throw new ApiError(404, '这一条不存在');
   } else {
     const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM garden_items WHERE garden_id = ?').bind(garden.id).first();
     if (n >= ITEMS_MAX) throw new ApiError(400, `一块园地最多 ${ITEMS_MAX} 条`);
     row = await env.DB.prepare(
-      `INSERT INTO garden_items (garden_id, author_id, title, body, date, lat, lon, done, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
-    ).bind(garden.id, user.id, title, note, date, lat, lon, done, now, now).first();
+      `INSERT INTO garden_items (garden_id, author_id, title, body, date, lat, lon, done, date_type, lunar, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+    ).bind(garden.id, user.id, title, note, date, lat, lon, done, dateType, lunar, now, now).first();
   }
   await touch(env, garden.id);
   return { id: row.id };
@@ -259,7 +271,10 @@ async function removeItem(env, id, user) {
   needWriter(role);
   // 一起写的人能改任何一条，但只能删自己写的；主人都能删
   if (role !== 'owner' && item.author_id !== user.id) throw new ApiError(403, '只能删自己写的，或者请主人删');
-  await env.DB.prepare('DELETE FROM garden_items WHERE id = ?').bind(id).run();
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM date_reminders WHERE item_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM garden_items WHERE id = ?').bind(id),
+  ]);
   await touch(env, item.garden_id);
   return { ok: true };
 }
@@ -363,6 +378,8 @@ export async function gardenRoute(env, key, url, body, user) {
       return answer(env, body, user);
     case 'POST /api/garden/remove':
       return removeMember(env, body, user);
+    case 'POST /api/garden/remind':
+      return setReminder(env, body, user);
   }
   throw new ApiError(404, '接口不存在');
 }

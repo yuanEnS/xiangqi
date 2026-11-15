@@ -32,3 +32,7 @@ class_name = "LobbyObject"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["LobbyObject"]
+
+# 每天 UTC 0 点（北京时间早上 8 点）跑一次：发纪念日、生日的邮件提醒（src/dates.js）
+[triggers]
+crons = ["0 0 * * *"]

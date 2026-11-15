@@ -2,6 +2,7 @@
 // 房间、匹配、走法校验都复用 server/lobby.js，和 Node 版行为完全一致。
 import { DurableObject } from 'cloudflare:workers';
 import lobbyModule from '../../server/lobby.js';
+import { runReminders } from './dates.js';
 import { connectUser, handleApi, recordResult } from './accounts.js';
 import { lifeSitemap, apiRobots } from './seo.js';
 import { searchPage } from './search.js';
@@ -79,8 +80,18 @@ export class LobbyObject extends DurableObject {
 }
 
 export default {
+  // 每天北京时间早上 8 点（wrangler.toml 的 crons）：发纪念日、生日的邮件提醒
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runReminders(env).then(sent => console.log(`发了 ${sent.length} 封纪念日提醒`)));
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
+    // 本地测试：指定「今天」跑一次提醒（线上没有 EMAIL_TEST_MODE，这个地址不存在）
+    if (url.pathname === '/api/test/reminders' && env.EMAIL_TEST_MODE === '1' && request.method === 'POST') {
+      const { today } = await request.json().catch(() => ({}));
+      return Response.json({ sent: await runReminders(env, today) });
+    }
     if (url.pathname.startsWith('/api/')) {
       // 接口返回的 JSON 不要进搜索结果
       const res = await handleApi(request, env, url);
