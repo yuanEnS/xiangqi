@@ -7,6 +7,7 @@
 //   POST /api/garden/delete {id}
 //   POST /api/garden/item {garden, id?, title, body, date, lat, lon, done, date_type?, lunar?}
 //        纪念日园地：date_type 是 anniversary 纪念日 / birthday 生日，lunar 为真按农历过（date 是当初那天的阳历）
+//   POST /api/garden/cycle/day、/cycle/remind     经期记录，见 cycle.js
 //   POST /api/garden/remind {item, days}    给纪念日园地的一条设邮件提醒：days 是提醒日列表，比如 [0, 3, 7]（0 是当天），空的就取消
 //   POST /api/garden/item/delete {id}
 //   POST /api/garden/invite {id, name}      主人按昵称邀请
@@ -14,10 +15,11 @@
 //   POST /api/garden/remove {id, name?}     主人请人离开；不带 name 是自己退出
 //   GET  /api/garden/geo?q=地名             搜城市或地点，给旅行地图用（转发 OpenStreetMap Nominatim）
 import { setReminder } from './dates.js';
+import { cycleData, cycleRoute } from './cycle.js';
 import { ApiError, overLimit } from './accounts.js';
 import { isAdmin, validDate } from './life.js';
 
-export const KINDS = ['wish', 'travel', 'dates', 'notes'];
+export const KINDS = ['wish', 'travel', 'dates', 'notes', 'cycle']; // cycle 经期记录：只有主人能看，见 cycle.js
 const TITLE_MAX = 40;
 const INTRO_MAX = 300;
 const ITEM_TITLE_MAX = 100;
@@ -136,7 +138,7 @@ async function view(env, id, user) {
     garden: {
       id: garden.id, kind: garden.kind, title: garden.title, intro: garden.intro,
       public: root.public, owner: garden.owner, role,
-      root: root.id, depth: path.length + 1, canNest: path.length + 1 < DEPTH_MAX,
+      root: root.id, depth: path.length + 1, canNest: garden.kind !== 'cycle' && path.length + 1 < DEPTH_MAX,
       // 开这块小园地的人也能删它
       created: !!(user && garden.parent_id && garden.created_by === user.id),
     },
@@ -147,13 +149,14 @@ async function view(env, id, user) {
       ...item, remind: item.remind === null || item.remind === undefined ? null : String(item.remind).split(',').map(Number).sort((a, b) => a - b),
     })),
     children: children.results,
+    cycle: await cycleData(env, garden, role),
   };
 }
 
 async function save(env, body, user) {
   const title = text(body.title, TITLE_MAX, '名字', true);
   const intro = text(body.intro, INTRO_MAX, '介绍');
-  const pub = body.public ? 1 : 0;
+  let pub = body.public ? 1 : 0;
   const now = Date.now();
   if (body.id) {
     const { garden, role } = await open(env, body.id, user);
@@ -164,17 +167,23 @@ async function save(env, body, user) {
         .bind(title, intro, now, garden.id).run();
     } else {
       needOwner(role);
+      if (garden.kind === 'cycle') pub = 0; // 经期记录永远不公开
       await env.DB.prepare('UPDATE gardens SET title = ?, intro = ?, public = ?, updated_at = ? WHERE id = ?')
         .bind(title, intro, pub, now, garden.id).run();
     }
     return { id: garden.id };
   }
   if (!KINDS.includes(body.kind)) throw new ApiError(400, '不认识的园地种类');
+  if (body.kind === 'cycle') {
+    if (body.parent) throw new ApiError(400, '经期记录只能单独开一块，不能放在别的园地里');
+    pub = 0;
+  }
   let ownerId = user.id;
   let parentId = null;
   if (body.parent) {
     const { garden: parent, root, role, path } = await open(env, body.parent, user);
     needWriter(role);
+    if (parent.kind === 'cycle') throw new ApiError(400, '经期记录里不能再开小园地');
     if (path.length + 1 >= DEPTH_MAX) throw new ApiError(400, `园中园最多 ${DEPTH_MAX} 层`);
     const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM gardens WHERE parent_id = ?').bind(parent.id).first();
     if (n >= CHILDREN_MAX) throw new ApiError(400, `一块园地里最多开 ${CHILDREN_MAX} 块小园地`);
@@ -198,6 +207,10 @@ async function save(env, body, user) {
 export function deleteGardens(env, where, value) {
   const ids = `SELECT id FROM gardens WHERE ${where}`;
   return [
+    // 注销账号时：纪念日提醒、经期记录也一起删
+    env.DB.prepare(`DELETE FROM date_reminders WHERE item_id IN (SELECT id FROM garden_items WHERE garden_id IN (${ids}))`).bind(value),
+    env.DB.prepare(`DELETE FROM cycle_days WHERE garden_id IN (${ids})`).bind(value),
+    env.DB.prepare(`DELETE FROM cycle_reminders WHERE garden_id IN (${ids})`).bind(value),
     env.DB.prepare(`DELETE FROM garden_items WHERE garden_id IN (${ids})`).bind(value),
     env.DB.prepare(`DELETE FROM garden_members WHERE garden_id IN (${ids})`).bind(value),
     env.DB.prepare(`DELETE FROM gardens WHERE ${where}`).bind(value),
@@ -208,6 +221,8 @@ export function deleteGardens(env, where, value) {
 function deleteTree(env, id) {
   return [
     env.DB.prepare(`${TREE} DELETE FROM date_reminders WHERE item_id IN (SELECT id FROM garden_items WHERE garden_id IN (SELECT id FROM tree))`).bind(id),
+    env.DB.prepare(`${TREE} DELETE FROM cycle_days WHERE garden_id IN (SELECT id FROM tree)`).bind(id),
+    env.DB.prepare(`${TREE} DELETE FROM cycle_reminders WHERE garden_id IN (SELECT id FROM tree)`).bind(id),
     env.DB.prepare(`${TREE} DELETE FROM garden_items WHERE garden_id IN (SELECT id FROM tree)`).bind(id),
     env.DB.prepare(`${TREE} DELETE FROM garden_members WHERE garden_id IN (SELECT id FROM tree)`).bind(id),
     env.DB.prepare(`${TREE} DELETE FROM gardens WHERE id IN (SELECT id FROM tree)`).bind(id),
@@ -286,6 +301,7 @@ async function removeItem(env, id, user) {
 async function invite(env, body, user) {
   const { root: garden, role } = await open(env, body.id, user);
   needOwner(role);
+  if (garden.kind === 'cycle') throw new ApiError(400, '经期记录只有你自己能看，不能邀请别人');
   const name = String(body.name || '').trim();
   const guest = await env.DB.prepare('SELECT id, email FROM users WHERE name = ?').bind(name).first();
   if (!guest) throw new ApiError(404, '没有这个昵称的账号');
@@ -383,6 +399,9 @@ export async function gardenRoute(env, key, url, body, user) {
       return removeMember(env, body, user);
     case 'POST /api/garden/remind':
       return setReminder(env, body, user);
+    case 'POST /api/garden/cycle/day':
+    case 'POST /api/garden/cycle/remind':
+      return cycleRoute(env, key, body, user);
   }
   throw new ApiError(404, '接口不存在');
 }

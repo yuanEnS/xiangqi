@@ -5,6 +5,7 @@
 import lunarModule from '../../server/lunar.js';
 import { ApiError, overLimit } from './accounts.js';
 import { openGarden } from './garden.js';
+import { runCycleReminders } from './cycle.js';
 
 const Lunar = lunarModule;
 const MAX_DAYS = 60;
@@ -127,5 +128,7 @@ export async function runReminders(env, today = beijingToday()) {
       .bind(occurrence.date, r.user_id, r.item_id, r.days)));
     sent.push({ item: row.item_id, user: row.user_id, date: occurrence.date, subject: mail.subject });
   }
-  return sent;
+  // 经期记录的提醒（cycle.js），和纪念日一起算每天的发信额度
+  const cycle = await runCycleReminders(env, today, (to, mail) => sendMail(env, to, mail), REMIND_PER_RUN - sent.length);
+  return [...sent, ...cycle];
 }

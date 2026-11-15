@@ -14,3 +14,6 @@ for (const name of fs.readdirSync(from).filter(n => n.endsWith('.js'))) {
 // 农历换算（纪念日、生日）：网页 life/lunar.js 和 Worker 的提醒共用
 fs.copyFileSync(path.join(__dirname, '..', 'server', 'lunar.js'), path.join(site, 'life', 'lunar.js'));
 console.log(`已复制 lunar.js → ${path.relative(process.cwd(), path.join(site, 'life', 'lunar.js'))}`);
+// 经期记录的预测：网页 life/cycle.js 和 Worker 的提醒共用
+fs.copyFileSync(path.join(__dirname, '..', 'server', 'cycle.js'), path.join(site, 'life', 'cycle.js'));
+console.log(`已复制 cycle.js → ${path.relative(process.cwd(), path.join(site, 'life', 'cycle.js'))}`);
