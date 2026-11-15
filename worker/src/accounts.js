@@ -11,6 +11,7 @@ import googleModule from '../../server/google-token.js';
 import { OWNER_NAME, lifeRoute } from './life.js';
 import { gardenRoute, deleteGardens } from './garden.js';
 import { forgetCommenter } from './comments.js';
+import { shelfRoute } from './shelf.js';
 
 const { START, ratingDelta } = ratingModule;
 const { verifyGoogleToken } = googleModule;
@@ -273,6 +274,7 @@ async function removeAccount(env, user) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM ratings WHERE user_id = ?').bind(user.id),
+    env.DB.prepare('DELETE FROM shelf WHERE user_id = ?').bind(user.id),
     // 自己文章下的评论跟着文章一起删；自己在别处写的评论清空正文
     env.DB.prepare('DELETE FROM comment_reports WHERE comment_id IN (SELECT c.id FROM comments c JOIN posts p ON p.id = c.post_id WHERE p.author_id = ?)').bind(user.id),
     env.DB.prepare('DELETE FROM comments WHERE post_id IN (SELECT id FROM posts WHERE author_id = ?)').bind(user.id),
@@ -313,6 +315,7 @@ async function route(request, env, url) {
 
   if (url.pathname.startsWith('/api/life/')) return lifeRoute(env, key, url, body, current, request.cf);
   if (url.pathname.startsWith('/api/garden/')) return gardenRoute(env, key, url, body, current);
+  if (url.pathname === '/api/shelf' || url.pathname.startsWith('/api/shelf/')) return shelfRoute(env, key, body, current);
 
   switch (key) {
     case 'GET /api/config':
