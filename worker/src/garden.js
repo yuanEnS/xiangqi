@@ -7,7 +7,7 @@
 //   POST /api/garden/delete {id}
 //   POST /api/garden/item {garden, id?, title, body, date, lat, lon, done, date_type?, lunar?}
 //        纪念日园地：date_type 是 anniversary 纪念日 / birthday 生日，lunar 为真按农历过（date 是当初那天的阳历）
-//   POST /api/garden/remind {item, days}    给纪念日园地的一条设邮件提醒，提前 days 天（0 是当天），days 为空就取消
+//   POST /api/garden/remind {item, days}    给纪念日园地的一条设邮件提醒：days 是提醒日列表，比如 [0, 3, 7]（0 是当天），空的就取消
 //   POST /api/garden/item/delete {id}
 //   POST /api/garden/invite {id, name}      主人按昵称邀请
 //   POST /api/garden/answer {id, accept}    受邀的人答应或拒绝
@@ -126,7 +126,7 @@ async function view(env, id, user) {
     env.DB.prepare(
       `SELECT i.id, i.title, i.body, i.date, i.lat, i.lon, i.done, i.updated_at, i.date_type, i.lunar,
          COALESCE(u.name, '') AS author, i.author_id = ? AS mine,
-         (SELECT r.days FROM date_reminders r WHERE r.item_id = i.id AND r.user_id = ?) AS remind
+         (SELECT group_concat(r.days) FROM date_reminders r WHERE r.item_id = i.id AND r.user_id = ?) AS remind
        FROM garden_items i LEFT JOIN users u ON u.id = i.author_id
        WHERE i.garden_id = ? ORDER BY i.date, i.id LIMIT ?`
     ).bind(user ? user.id : -1, user ? user.id : -1, garden.id, ITEMS_MAX).all(),
@@ -142,7 +142,10 @@ async function view(env, id, user) {
     },
     path,
     members: members.results,
-    items: items.results,
+    // 我设的提醒日：[0, 3, 7] 这样，没设是 null
+    items: items.results.map(item => ({
+      ...item, remind: item.remind === null || item.remind === undefined ? null : String(item.remind).split(',').map(Number).sort((a, b) => a - b),
+    })),
     children: children.results,
   };
 }

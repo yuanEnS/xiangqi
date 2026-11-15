@@ -1,5 +1,6 @@
-// 纪念日和生日的邮件提醒。每个人可以给纪念日园地里的某一条设「提前几天」，每天北京时间早上 8 点（wrangler.toml 的 crons）
-// 检查一遍：离下一次还有 0 到 days 天、这一次还没提醒过的，给他发一封邮件。农历的按农历算下一次是哪天（server/lunar.js）。
+// 纪念日和生日的邮件提醒。每个人可以给纪念日园地里的某一条设几个提醒日（当天、提前 3 天、提前 7 天……可以多选），
+// 每天北京时间早上 8 点（wrangler.toml 的 crons）检查一遍：某个提醒日到了（离下一次还有 0 到 days 天）、这一次还没提醒过，
+// 就给他发一封邮件。同一天有几个提醒日一起到了（比如快到了才设），只发一封。农历的按农历算下一次是哪天（server/lunar.js）。
 // 邮件用 Resend 发，和登录验证码共用每天的发信额度（mail:all），每次最多发 REMIND_PER_RUN 封，留给验证码一些余量。
 import lunarModule from '../../server/lunar.js';
 import { ApiError, overLimit } from './accounts.js';
@@ -7,6 +8,7 @@ import { openGarden } from './garden.js';
 
 const Lunar = lunarModule;
 const MAX_DAYS = 60;
+const MAX_CHOICES = 8;
 const REMIND_PER_RUN = 60;
 const MAIL_PER_DAY = 90;
 const DAY = 86400000;
@@ -25,17 +27,20 @@ export async function setReminder(env, body, user) {
   if (!item || item.kind !== 'dates') throw new ApiError(404, '这一条不存在');
   const { role } = await openGarden(env, item.garden_id, user);
   if (!['owner', 'member'].includes(role)) throw new ApiError(403, '只有园地的主人和一起写的人能设提醒');
-  if (body.days === null || body.days === undefined || body.days === '') {
-    await env.DB.prepare('DELETE FROM date_reminders WHERE user_id = ? AND item_id = ?').bind(user.id, item.id).run();
-    return { remind: null };
-  }
-  const days = Number(body.days);
-  if (!Number.isInteger(days) || days < 0 || days > MAX_DAYS) throw new ApiError(400, `提前 0 到 ${MAX_DAYS} 天`);
-  await env.DB.prepare(
-    `INSERT INTO date_reminders (user_id, item_id, days, created_at) VALUES (?, ?, ?, ?)
-     ON CONFLICT (user_id, item_id) DO UPDATE SET days = excluded.days`
-  ).bind(user.id, item.id, days, Date.now()).run();
-  return { remind: days };
+  // days 是提醒日的列表，比如 [0, 3, 7]；空的就是不提醒。也认单个数字
+  const raw = body.days === null || body.days === undefined || body.days === '' ? [] : [].concat(body.days);
+  const days = [...new Set(raw.map(Number))].sort((a, b) => a - b);
+  if (days.some(d => !Number.isInteger(d) || d < 0 || d > MAX_DAYS)) throw new ApiError(400, `提前 0 到 ${MAX_DAYS} 天`);
+  if (days.length > MAX_CHOICES) throw new ApiError(400, `最多设 ${MAX_CHOICES} 个提醒`);
+  const keep = days.length ? `AND days NOT IN (${days.map(() => '?').join(', ')})` : '';
+  await env.DB.batch([
+    // 去掉的提醒日删掉，新加的插进去，原来就有的不动（保留「已经提醒过」的记录）
+    env.DB.prepare(`DELETE FROM date_reminders WHERE user_id = ? AND item_id = ? ${keep}`).bind(user.id, item.id, ...days),
+    ...days.map(d => env.DB.prepare(
+      'INSERT OR IGNORE INTO date_reminders (user_id, item_id, days, created_at) VALUES (?, ?, ?, ?)'
+    ).bind(user.id, item.id, d, Date.now())),
+  ]);
+  return { remind: days.length ? days : null };
 }
 
 const cnDate = iso => {
@@ -84,14 +89,23 @@ export async function runReminders(env, today = beijingToday()) {
      FROM date_reminders r JOIN garden_items i ON i.id = r.item_id JOIN users u ON u.id = r.user_id
      WHERE u.email IS NOT NULL LIMIT 5000`
   ).all();
-  const sent = [];
+  // 同一个人、同一条的几个提醒日放在一起看：今天到了的（还没提醒过这一次的）合成一封
+  const groups = new Map();
   for (const row of results) {
+    const key = `${row.user_id}:${row.item_id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  const sent = [];
+  for (const rows of groups.values()) {
     if (sent.length >= REMIND_PER_RUN) break;
+    const row = rows[0];
     if (!Lunar.validIso(row.date)) continue;
     const occurrence = Lunar.next({ date: row.date, lunar: !!row.lunar }, today);
-    if (!occurrence || row.last_sent === occurrence.date) continue;
+    if (!occurrence) continue;
     const left = Lunar.dayNumber(occurrence.date) - Lunar.dayNumber(today);
-    if (left < 0 || left > row.days) continue;
+    const due = rows.filter(r => r.last_sent !== occurrence.date && left >= 0 && left <= r.days);
+    if (!due.length) continue;
     // 发信前再看一次：他还是不是这块园地的主人或一起写的人（被请出去了就删掉提醒）
     let role = 'none';
     try {
@@ -109,8 +123,8 @@ export async function runReminders(env, today = beijingToday()) {
       console.error(err);
       continue;
     }
-    await env.DB.prepare('UPDATE date_reminders SET last_sent = ? WHERE user_id = ? AND item_id = ?')
-      .bind(occurrence.date, row.user_id, row.item_id).run();
+    await env.DB.batch(due.map(r => env.DB.prepare('UPDATE date_reminders SET last_sent = ? WHERE user_id = ? AND item_id = ? AND days = ?')
+      .bind(occurrence.date, r.user_id, r.item_id, r.days)));
     sent.push({ item: row.item_id, user: row.user_id, date: occurrence.date, subject: mail.subject });
   }
   return sent;
