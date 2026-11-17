@@ -52,7 +52,7 @@ function pageHtml({ q, scope, body, site }) {
     `<label><input type="radio" name="in" value="${key}"${key === scope ? ' checked' : ''}> ${name}</label>`).join('');
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>${q ? `${esc(q)} · ` : ''}搜索 | gamesyuan</title>${STYLE}</head><body>
+<title>${q ? `${esc(q)} · ` : ''}搜索 | Enjoy and Share</title>${STYLE}</head><body>
 <p class="nav"><a href="${site}/">首页</a><a href="${site}/life/world/">世界园</a><a href="${site}/reading/">阅读园</a><a href="${site}/research/">研究园</a></p>
 <h1>搜索</h1>
 <form action="/search" method="get">

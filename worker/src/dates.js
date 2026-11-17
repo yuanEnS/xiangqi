@@ -67,7 +67,7 @@ export function reminderMail(row, occurrence, today) {
     '',
     `在生活园里看：${SITE}/life/garden/?id=${row.garden_id}`,
     '',
-    '这封邮件是你自己在 gamesyuan 生活园的纪念日里设的提醒。不想再收到，打开上面的链接，把这一条的提醒改成「不提醒」就行。',
+    '这封邮件是你自己在 Enjoy and Share（yuanens.com）生活园的纪念日里设的提醒。不想再收到，打开上面的链接，把这一条的提醒改成「不提醒」就行。',
   ].join('\n');
   return { subject, text };
 }
