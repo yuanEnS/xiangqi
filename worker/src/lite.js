@@ -191,7 +191,7 @@ async function postPage(env, id, site) {
 
 export async function litePage(request, env) {
   const url = new URL(request.url);
-  const site = /^(localhost|127\.0\.0\.1)$/.test(url.hostname) ? 'http://localhost:5600' : 'https://gamesyuan.com';
+  const site = /^(localhost|127\.0\.0\.1)$/.test(url.hostname) ? 'http://localhost:5600' : 'https://yuanens.com';
   const page = Math.max(1, Math.min(1000, Number(url.searchParams.get('page')) || 1));
   const path = url.pathname.replace(/\/+$/, '');
   if (path === '/life/lite') return worldList(env, page, site);

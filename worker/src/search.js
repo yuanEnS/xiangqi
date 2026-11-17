@@ -85,7 +85,7 @@ async function searchPosts(env, q, like) {
 export async function searchPage(request, env) {
   const url = new URL(request.url);
   const local = /^(localhost|127\.0\.0\.1)$/.test(url.hostname);
-  const site = local ? 'http://localhost:5600' : 'https://gamesyuan.com';
+  const site = local ? 'http://localhost:5600' : 'https://yuanens.com';
   const q = (url.searchParams.get('q') || '').trim().slice(0, QUERY_MAX);
   const scope = SCOPES[url.searchParams.get('in')] ? url.searchParams.get('in') : 'all';
   const page = Math.max(1, Math.min(50, Number(url.searchParams.get('page')) || 1));

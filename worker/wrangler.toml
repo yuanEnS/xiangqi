@@ -3,10 +3,14 @@ name = "xiangqi"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 
-# 正式地址 wss://api.gamesyuan.com（需要 gamesyuan.com 已经托管在 Cloudflare）。
+# 正式地址 wss://api.yuanens.com（需要 yuanens.com 已经托管在 Cloudflare）。
 # 原来的 xiangqi.yuanens.workers.dev 也继续可用。
 workers_dev = true
-routes = [{ pattern = "api.gamesyuan.com", custom_domain = true }]
+# 2026-11 起主域名换成 yuanens.com；旧的 api.gamesyuan.com 先留着（Kindle 书签、老链接还在用），以后不要了再删掉那一行
+routes = [
+  { pattern = "api.yuanens.com", custom_domain = true },
+  { pattern = "api.gamesyuan.com", custom_domain = true },
+]
 
 # 账号、积分、排行榜。改表结构：加一个 migrations/ 文件，再运行
 # npx wrangler d1 migrations apply gamesyuan --remote
@@ -19,7 +23,7 @@ database_id = "1486a587-ad5a-43d0-9dfc-400f7b7aaad6"
 # 邮箱登录要配置 Resend 密钥（不要写在这里）：npx wrangler secret put RESEND_API_KEY
 [vars]
 GOOGLE_CLIENT_ID = "548217929259-s8ufd3gfk6339jtrj3dqi3gprqgvj9h8.apps.googleusercontent.com"
-MAIL_FROM = "游戏园 <noreply@gamesyuan.com>"
+MAIL_FROM = "游戏园 <noreply@yuanens.com>"
 # 生活园的园主，能管理所有文章：邮箱的 SHA-256，这样公开的代码里看不到邮箱
 LIFE_ADMIN_EMAIL_HASH = "dff0947151d78882a409da914039507fd4064b9d82159cc1e5e63b3c7789e10d"
 

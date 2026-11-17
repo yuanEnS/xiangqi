@@ -2,7 +2,7 @@
 // 用法：
 //   node web/build.js                    打包象棋到 web/dist/，本地预览 web/index.html 用
 //   node web/build.js xiangqi _site      生成完整的象棋网站到 _site/（GitHub Actions 部署用）
-//   node web/build.js gomoku ../yuanEnS.github.io/wuziqi   生成五子棋网站（gamesyuan.com/wuziqi/）
+//   node web/build.js gomoku ../yuanEnS.github.io/wuziqi   生成五子棋网站（yuanens.com/wuziqi/）
 const fs = require('fs');
 const path = require('path');
 

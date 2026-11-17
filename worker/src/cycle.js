@@ -14,7 +14,7 @@ const DAYS_MAX = 4000; // 十年多
 const REMIND_MAX = 10;
 const MAIL_PER_DAY = 90;
 const DAY = 86400000;
-const SITE = 'https://gamesyuan.com';
+const SITE = 'https://yuanens.com';
 
 async function ownCycle(env, id, user) {
   const { garden, role } = await openGarden(env, id, user);

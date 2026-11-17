@@ -1,8 +1,8 @@
-// 让 Google 能找到生活园的公开文章：api.gamesyuan.com/sitemap-life.xml 列出所有公开文章和作者页，
-// gamesyuan.com/robots.txt 里写了这个地址。草稿、仅自己可见的文章、园地都不会出现在这里。
+// 让 Google 能找到生活园的公开文章：api.yuanens.com/sitemap-life.xml 列出所有公开文章和作者页，
+// yuanens.com/robots.txt 里写了这个地址。草稿、仅自己可见的文章、园地都不会出现在这里。
 import { OWNER_NAME } from './life.js';
 
-const SITE = 'https://gamesyuan.com';
+const SITE = 'https://yuanens.com';
 const MAX_URLS = 45000; // 一个 sitemap 最多 50000 条
 
 const xml = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
@@ -33,9 +33,9 @@ ${urls.map(([loc, updated]) => `  <url><loc>${xml(loc)}</loc><lastmod>${day(upda
   });
 }
 
-// api.gamesyuan.com 上的 robots.txt：允许抓取（网页渲染文章时要读接口），但接口本身带 noindex，不会进搜索结果
+// api.yuanens.com 上的 robots.txt：允许抓取（网页渲染文章时要读接口），但接口本身带 noindex，不会进搜索结果
 export function apiRobots() {
-  return new Response(`User-agent: *\nAllow: /\n\nSitemap: https://api.gamesyuan.com/sitemap-life.xml\n`, {
+  return new Response(`User-agent: *\nAllow: /\n\nSitemap: https://api.yuanens.com/sitemap-life.xml\n`, {
     headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' },
   });
 }

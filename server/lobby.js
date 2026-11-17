@@ -16,7 +16,7 @@
 
 const Xiangqi = require('../minigame/js/xiangqi.js');
 const Gomoku = require('../minigame/js/gomoku.js');
-// 网页上的新棋：规则文件和 gamesyuan.com/games/rules/ 里的是同一份
+// 网页上的新棋：规则文件和 yuanens.com/games/rules/ 里的是同一份
 const Othello = require('./rules/othello.js');
 const Connect4 = require('./rules/connect4.js');
 const Jungle = require('./rules/jungle.js');

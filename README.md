@@ -4,8 +4,8 @@
 
 - **微信小游戏**：首页先选「中国象棋」或「五子棋」，只有人机对战和本地双人（`minigame/js/config.js` 里 `SERVER_URL` 留空，不显示联网入口）。
 - **网页版**：每个游戏一个网页，除了人机和本地双人，还有联网对战（快速匹配 + 好友房间）。
-  - 中国象棋：<https://gamesyuan.com/xiangqi/>（本仓库推送后由 GitHub Actions 自动发布）
-  - 五子棋：<https://gamesyuan.com/wuziqi/>（打包到 `yuanEnS.github.io` 仓库的 `wuziqi/` 目录里发布，见下文）
+  - 中国象棋：<https://yuanens.com/xiangqi/>（本仓库推送后由 GitHub Actions 自动发布）
+  - 五子棋：<https://yuanens.com/wuziqi/>（打包到 `yuanEnS.github.io` 仓库的 `wuziqi/` 目录里发布，见下文）
 
 ```
 xiangqi/
@@ -117,7 +117,7 @@ python3 -m http.server 8000
 
 ### 发布五子棋网页
 
-五子棋发布在 `gamesyuan.com/wuziqi/`，由首页仓库 `yuanEnS.github.io` 托管。改了五子棋代码后，在本仓库运行：
+五子棋发布在 `yuanens.com/wuziqi/`，由首页仓库 `yuanEnS.github.io` 托管。改了五子棋代码后，在本仓库运行：
 
 ```bash
 node web/build.js gomoku ../yuanEnS.github.io/wuziqi
@@ -224,7 +224,7 @@ npm start
 
 ## 网页上的其他小游戏
 
-`gamesyuan.com` 上还有九个网页小游戏，都是普通网页，放在首页仓库 `yuanEnS.github.io` 里，不经过 `web/build.js`：
+`yuanens.com` 上还有九个网页小游戏，都是普通网页，放在首页仓库 `yuanEnS.github.io` 里，不经过 `web/build.js`：
 
 - 两人对弈，可以人机（三档难度）、双人、联网：黑白棋 `/heibai/`、四子连珠 `/sizi/`、斗兽棋 `/doushou/`；
 - 单人：华容道 `/huarong/`、数独 `/shudu/`、扫雷 `/saolei/`、24 点 `/24dian/`、诗词填字 `/shici/`、成语接龙 `/chengyu/`。
@@ -241,7 +241,7 @@ npm start
 
 ## 全站搜索
 
-`api.gamesyuan.com/search?q=关键词` 直接返回 HTML 结果页（不用 JavaScript，Kindle 也能用），首页、阅读园、研究园上的搜索框都提交到这里。
+`api.yuanens.com/search?q=关键词` 直接返回 HTML 结果页（不用 JavaScript，Kindle 也能用），首页、阅读园、研究园上的搜索框都提交到这里。
 搜的是阅读园每本书的正文（中文书按简体）、研究园的期刊文章和经典书籍，数据在 D1 的 `search_docs` 表（`worker/src/search.js`、迁移 0009）。
 
 网站内容更新以后（加了书、更新了期刊文章），重新生成并导入搜索数据（会先清空旧数据）：
@@ -253,7 +253,7 @@ cd worker && npx wrangler d1 execute gamesyuan --remote --file <上一步打印�
 
 ## 账号、积分和排行榜（只有网页版）
 
-账号页面是 gamesyuan.com/account/（在 yuanEnS.github.io 仓库里），接口和数据库都在 `worker/`：
+账号页面是 yuanens.com/account/（在 yuanEnS.github.io 仓库里），接口和数据库都在 `worker/`：
 
 - 第一次联网时自动创建游客账号；用 Google 或邮箱验证码登录后，积分保留，可以跨设备使用。两种登录方式用同一个邮箱就是同一个账号。
 - 积分是 Elo，初始 1200，只有快速匹配计分。走满 6 步后离开算输，同一对手每天最多计 3 局。

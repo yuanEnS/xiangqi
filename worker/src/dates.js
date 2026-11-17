@@ -13,7 +13,7 @@ const MAX_CHOICES = 8;
 const REMIND_PER_RUN = 60;
 const MAIL_PER_DAY = 90;
 const DAY = 86400000;
-const SITE = 'https://gamesyuan.com';
+const SITE = 'https://yuanens.com';
 
 // 北京时间的今天
 export function beijingToday() {

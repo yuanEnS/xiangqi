@@ -33,7 +33,7 @@ const MEMBERS_MAX = 9; // 除了主人，最多几人一起写（含没答应的
 const ITEMS_MAX = 300;
 // 地点搜索：经服务器转发，用户的 IP 不会发给 OpenStreetMap；同样的搜索缓存一周，按它的使用规定不多打扰
 const GEO_URL = 'https://nominatim.openstreetmap.org/search';
-const GEO_AGENT = 'gamesyuan-travel-map/1.0 (+https://gamesyuan.com/)';
+const GEO_AGENT = 'gamesyuan-travel-map/1.0 (+https://yuanens.com/)';
 const GEO_PER_HOUR = 60;
 const GEO_CACHE_SECONDS = 7 * 86400;
 
@@ -349,7 +349,7 @@ async function geocode(env, url, user) {
   const cache = typeof caches !== 'undefined' ? caches.default : null;
   let res = cache && await cache.match(target);
   if (!res) {
-    const fresh = await fetch(target, { headers: { 'User-Agent': GEO_AGENT, Referer: 'https://gamesyuan.com/' } });
+    const fresh = await fetch(target, { headers: { 'User-Agent': GEO_AGENT, Referer: 'https://yuanens.com/' } });
     if (!fresh.ok) throw new ApiError(502, '地点搜索暂时用不了，可以先在地图上点');
     res = new Response(await fresh.text(), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `max-age=${GEO_CACHE_SECONDS}` } });
     if (cache) await cache.put(target, res.clone());
