@@ -1,13 +1,13 @@
-// 全站搜索：GET /search?q=关键词&in=all|reading|research&page=1
+// 全站搜索：GET /search?q=关键词&in=all|life|reading&page=1
 // 直接返回 HTML 页面（不是 JSON），不用 JavaScript，Kindle 等老浏览器也能用。
-// 阅读园、研究园的数据在 D1 的 search_docs 表，由 tools/search/build.py 生成后导入；
+// 阅读园的数据在 D1 的 search_docs 表（研究园已经搬到私人网站，不再公开搜索），由 tools/search/build.py 生成后导入；
 // 世界园直接搜 posts 表里公开的文章（草稿、仅自己可见的不搜），发了就能搜到。中文按字匹配，用 LIKE 扫全表。
 import { overLimit, sha256 } from './accounts.js';
 
 const PER_PAGE = 20;
 const MAX_ROWS = 600;
 const QUERY_MAX = 40;
-const SCOPES = { all: '全部', life: '世界园', reading: '阅读园', research: '研究园' };
+const SCOPES = { all: '全部', life: '世界园', reading: '阅读园' };
 const KINDS = { book: '书', chapter: '章节', paper: '期刊文章', post: '文章' };
 
 function esc(text) {
@@ -53,7 +53,7 @@ function pageHtml({ q, scope, body, site }) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>${q ? `${esc(q)} · ` : ''}搜索 | Enjoy and Share</title>${STYLE}</head><body>
-<p class="nav"><a href="${site}/">首页</a><a href="${site}/life/world/">世界园</a><a href="${site}/reading/">阅读园</a><a href="${site}/research/">研究园</a></p>
+<p class="nav"><a href="${site}/">首页</a><a href="${site}/life/world/">世界园</a><a href="${site}/reading/">阅读园</a></p>
 <h1>搜索</h1>
 <form action="/search" method="get">
 <input type="search" name="q" value="${esc(q)}" maxlength="${QUERY_MAX}" placeholder="书名、作者、正文里的词，比如 黛玉、Sherlock、causal" aria-label="搜索">
@@ -103,7 +103,7 @@ export async function searchPage(request, env) {
   }
 
   const like = '%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%';
-  const where = scope === 'all' ? '' : 'AND site = ?3';
+  const where = scope === 'all' ? "AND site = 'reading'" : 'AND site = ?3'; // 表里旧的研究园数据也不会搜出来
   const results = [];
   if (scope === 'all' || scope === 'life') results.push(...await searchPosts(env, q, like));
   if (scope !== 'life') results.push(...(await env.DB.prepare(

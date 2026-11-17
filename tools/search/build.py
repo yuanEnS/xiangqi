@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""全站搜索的数据：把网站上阅读园、研究园的内容整理成 SQL，导入 D1 的 search_docs 表。
+"""全站搜索的数据：把网站上阅读园的内容整理成 SQL，导入 D1 的 search_docs 表。
 
     python3 tools/search/build.py [网站仓库路径]
 
@@ -9,7 +9,7 @@
 
 收录：
   阅读园：每本书的简介，和每一章的正文（中文书用简体版）
-  研究园：经典书籍的简介和在线阅读的每一章，期刊文章（research/papers/ 按年分的文件）的标题、作者、摘要
+  （研究园搬到了私人网站 research.yuanens.com，不公开，不再收录）
 长的章节切成几段存（D1 一条 SQL 语句不能超过 100 KB），搜索时按章合并。
 """
 import glob
@@ -60,30 +60,6 @@ def reading_docs(site):
                        'body': chunk, 'part': n}
 
 
-def research_docs(site):
-    base = os.path.join(site, 'research')
-    books = json.load(open(os.path.join(base, 'books.json'), encoding='utf-8'))['books']
-    for book in books:
-        first = (book.get('links') or [{}])[0].get('url', '/research/?view=books')
-        yield {'site': 'research', 'kind': 'book', 'title': book['title'], 'sub': f'{", ".join(book["authors"])} · {book.get("year", "")}',
-               'url': first, 'body': f'{book["title"]} {" ".join(book["authors"])} {" ".join(book["topics"])} {book.get("intro", "")}'}
-        reader = book.get('reader')
-        if reader:
-            folder = os.path.join(site, reader.strip('/'))
-            for file in sorted(f for f in os.listdir(folder) if re.fullmatch(r'\d+\.html', f)):
-                title, text = text_of(os.path.join(folder, file))
-                for n, chunk in parts(text):
-                    yield {'site': 'research', 'kind': 'chapter', 'title': title, 'sub': book['title'],
-                           'url': reader + file, 'body': chunk, 'part': n}
-    # 期刊文章按年分在 research/papers/<年>.json
-    for file in sorted(glob.glob(os.path.join(base, 'papers', '[0-9]*.json')), reverse=True):
-        for paper in json.load(open(file, encoding='utf-8'))['papers']:
-            extra = ' · 有原文' if paper.get('reader') else ''
-            yield {'site': 'research', 'kind': 'paper', 'title': paper['title'],
-                   'sub': f'{paper["journal"]} · {paper.get("date") or ""} · {", ".join(paper["topics"])}{extra}',
-                   'url': paper.get('reader') or paper['link'], 'body': f'{paper["title"]} {paper["authors"]} {paper["abstract"]}'}
-
-
 def sql_text(value):
     return "'" + str(value).replace("'", "''") + "'"
 
@@ -91,7 +67,7 @@ def sql_text(value):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     site = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, '..', '..', '..', 'yuanEnS.github.io')
-    docs = list(reading_docs(site)) + list(research_docs(site))
+    docs = list(reading_docs(site))
     out = os.path.join(tempfile.gettempdir(), 'gamesyuan-search.sql')
     columns = '(site, kind, title, sub, url, body, part)'
     statements, rows, size = ['DELETE FROM search_docs;'], [], 0

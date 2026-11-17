@@ -346,8 +346,8 @@ async function route(request, env, url) {
 // 令牌放在请求头里、不用 Cookie，所以允许本地调试页面跨域访问也没有风险
 function corsHeaders(request) {
   const origin = request.headers.get('Origin') || '';
-  // 换域名的过渡期：旧的 gamesyuan.com 也照常允许（那边整站跳转到 yuanens.com 以后，一般不会再有请求）
-  const allowed = /^https:\/\/(yuanens|gamesyuan)\.com$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  // research.yuanens.com 是私人研究园（书架用这里的 /api/shelf）。换域名的过渡期：旧的 gamesyuan.com 也照常允许（那边整站跳转到 yuanens.com 以后，一般不会再有请求）
+  const allowed = /^https:\/\/((research\.)?yuanens|gamesyuan)\.com$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
   return {
     'Access-Control-Allow-Origin': allowed ? origin : 'https://yuanens.com',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
