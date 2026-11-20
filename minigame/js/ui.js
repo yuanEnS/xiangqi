@@ -240,6 +240,20 @@ function levelCard(x, y, w, level, selected, onTap) {
   hit(x, y, w, 56, onTap);
 }
 
+// 难度多的时候用两列的小卡片：名字在上，说明在下
+function levelTile(x, y, w, h, level, selected, onTap) {
+  const ui = theme().ui;
+  roundRect(ctx, x, y, w, h, 10);
+  ctx.fillStyle = selected ? ui.primary : ui.card;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = ui.primary;
+  ctx.stroke();
+  text(level.name, x + 12, y + h / 2 - 10, 17, selected ? ui.onPrimary : ui.primary, { bold: true, align: 'left' });
+  text(level.desc, x + 12, y + h / 2 + 12, 12, selected ? ui.onPrimary : ui.muted, { align: 'left' });
+  hit(x, y, w, h, onTap);
+}
+
 // 首页的一列入口卡片：{ icon(x, y, r), title, sub, onTap }
 function entryCards(entries) {
   const ui = theme().ui;
@@ -431,7 +445,7 @@ module.exports = {
   W, H, ctx, titleY, contentTop, BAR_H, ACTION_H, playLayout,
   settings, saveSettings, theme, GLYPHS, THEMES,
   show, render, clearButtons, toast, confirmThen, actionSheet,
-  text, hit, button, buttonRow, pill, card, drawDecor, header, levelCard, entryCards, playerBar, resultBox, withRating, accountButton,
+  text, hit, button, buttonRow, pill, card, drawDecor, header, levelCard, levelTile, entryCards, playerBar, resultBox, withRating, accountButton,
   matchingScreen, connectingScreen, waitingScreen, askRoomCode,
   openThemes, closeThemes,
 };

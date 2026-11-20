@@ -23,7 +23,9 @@ const dist = out ? path.join(out, 'dist') : path.join(__dirname, 'dist');
 // 本地测试可以临时指定服务器：SERVER_URL=ws://127.0.0.1:8787 node web/build.js
 const webConfig = require('./config.js');
 const serverUrl = process.env.SERVER_URL || webConfig.SERVER_URL;
-const CONFIG_SOURCE = `module.exports = ${JSON.stringify({ SERVER_URL: serverUrl, GAMES: [game] })};`;
+// ENGINE_URL：象棋高级电脑的 Worker 脚本（web/xq-engine.js 复制到 dist/），改了引擎要把 ?v= 加一
+const ENGINE_URL = game === 'xiangqi' ? 'dist/xq-engine.js?v=1' : '';
+const CONFIG_SOURCE = `module.exports = ${JSON.stringify({ SERVER_URL: serverUrl, GAMES: [game], ENGINE_URL })};`;
 
 function resolve(fromId, request) {
   let id = path.posix.normalize(path.posix.join(path.posix.dirname(fromId), request));
@@ -73,6 +75,7 @@ load('game.js');
 
 fs.mkdirSync(path.join(dist, 'fonts'), { recursive: true });
 fs.writeFileSync(path.join(dist, 'game.js'), bundle);
+if (ENGINE_URL) fs.copyFileSync(path.join(__dirname, 'xq-engine.js'), path.join(dist, 'xq-engine.js'));
 for (const file of ['kai.ttf', 'piece.ttf', 'OFL.txt']) {
   fs.copyFileSync(path.join(gameRoot, 'fonts', file), path.join(dist, 'fonts', file));
 }

@@ -1,9 +1,9 @@
 // 中国象棋：首页、人机设置、联网流程、对局画面
 const { Game, sideOf, legalMoves } = require('./xiangqi.js');
 const { drawBoard, drawPiece, drawThemePreview } = require('./draw.js');
-const { LEVELS, findBestMove } = require('./ai.js');
+const { LEVELS: BASE_LEVELS, PRO_LEVELS, findBestMove } = require('./ai.js');
 const Net = require('./net.js');
-const { SERVER_URL } = require('./config.js');
+const { SERVER_URL, ENGINE_URL } = require('./config.js');
 const ui = require('./ui.js');
 
 const { W, ctx, contentTop, ACTION_H, settings, saveSettings, theme, text, button, buttonRow, header } = ui;
@@ -15,6 +15,8 @@ const cell = L.cell;
 const boardX = W / 2 - 4 * cell; // 左上角交叉点
 const boardY = L.boardTop + cell / 2;
 
+// 网页版有高级引擎（Web Worker），多出棋王、棋圣、棋神、棋仙四档；小游戏只有三档
+const LEVELS = ENGINE_URL && typeof Worker !== 'undefined' ? Object.assign({}, BASE_LEVELS, PRO_LEVELS) : BASE_LEVELS;
 if (!LEVELS[settings.aiLevel]) settings.aiLevel = 'medium';
 if (!['r', 'b', 'random'].includes(settings.aiSide)) settings.aiSide = 'r';
 
@@ -60,6 +62,58 @@ function clearSelection() {
 function cancelAi() {
   state.aiToken++;
   state.aiThinking = false;
+  if (workerBusy) stopWorker(); // 正在算的那步不要了，不然下一步要排在它后面
+}
+
+// ---------- 高级电脑（网页版）：在 Web Worker 里按时间搜索，页面不卡 ----------
+let worker = null;
+let workerBusy = false;
+
+function stopWorker() {
+  if (worker) worker.terminate();
+  worker = null;
+  workerBusy = false;
+}
+
+// 到时间一定出棋：Worker 自己按时限停下；万一它没按时回来（手机切后台、出错），
+// 超过时限 1.5 秒就停掉它，用它已经算完的最好一步
+function thinkInWorker(game, level, token, done) {
+  const board = game.board, side = game.turn;
+  let last = null, finished = false, timer = null;
+  const finish = m => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    workerBusy = false;
+    if (token !== state.aiToken) return;
+    if (!m || !m.from) m = findBestMove(board, side, 'hard'); // 保底：Worker 用不了时在页面里算
+    done(m);
+  };
+  try {
+    if (!worker) worker = new Worker(ENGINE_URL);
+  } catch (e) {
+    worker = null;
+  }
+  if (!worker) {
+    setTimeout(() => finish(null), 60);
+    return;
+  }
+  worker.onmessage = e => {
+    const d = e.data;
+    if (d.id !== token) return;
+    if (d.type === 'info') last = d;
+    else finish(d.from ? d : last);
+  };
+  worker.onerror = () => {
+    stopWorker();
+    finish(last);
+  };
+  timer = setTimeout(() => {
+    stopWorker();
+    finish(last);
+  }, level.timeMs + 1500);
+  workerBusy = true;
+  worker.postMessage({ id: token, board, side, timeMs: level.timeMs, history: game.history.slice(-100).map(h => h.board) });
 }
 
 function goMenu() {
@@ -199,13 +253,20 @@ function maybeAiMove() {
   state.aiThinking = true;
   const token = ++state.aiToken;
   render();
-  setTimeout(() => {
-    if (token !== state.aiToken) return;
-    const m = findBestMove(game.board, game.turn, settings.aiLevel);
+  const play = m => {
     if (m) game.move(m.from, m.to);
     state.aiThinking = false;
     clearSelection();
     render();
+  };
+  const level = LEVELS[settings.aiLevel];
+  if (level.pro) {
+    thinkInWorker(game, level, token, play);
+    return;
+  }
+  setTimeout(() => {
+    if (token !== state.aiToken) return;
+    play(findBestMove(game.board, game.turn, settings.aiLevel));
   }, 60);
 }
 
@@ -312,7 +373,7 @@ function drawHome() {
     { piece: 'P', title: '快速匹配', sub: '自动匹配正在找棋友的人', onTap: startMatch, online: true },
     { piece: 'K', title: '创建房间', sub: '生成房间号，邀请好友联网对战', onTap: createRoom, online: true },
     { piece: 'n', title: '加入房间', sub: '输入好友发来的房间号', onTap: joinRoom, online: true },
-    { piece: 'R', title: '人机对战', sub: '和电脑下棋 · 入门 / 业余 / 大师', onTap: openAiSetup },
+    { piece: 'R', title: '人机对战', sub: LEVELS.immortal ? '和电脑下棋 · 从入门到棋仙，七档难度' : '和电脑下棋 · 入门 / 业余 / 大师', onTap: openAiSetup },
     { piece: 'C', title: '本地双人', sub: '同一台设备，轮流走棋', onTap: startLocal },
     { piece: 'b', title: '棋盘主题', sub: ui.THEMES.map(t => t.name).join(' · '), onTap: ui.openThemes },
   ].filter(entry => SERVER_URL || !entry.online); // 没配服务器（比如小游戏版）就不显示联网入口
@@ -328,15 +389,24 @@ function drawAiSetup() {
 
   text('难度', x, y + 10, 16, colors.text, { bold: true, align: 'left' });
   y += 28;
-  for (const id of Object.keys(LEVELS)) {
-    const level = LEVELS[id];
-    const selected = settings.aiLevel === id;
-    ui.levelCard(x, y, w, level, selected, () => {
-      settings.aiLevel = id;
-      saveSettings();
-      render();
+  const ids = Object.keys(LEVELS);
+  const pick = id => () => {
+    settings.aiLevel = id;
+    saveSettings();
+    render();
+  };
+  if (ids.length <= 3) {
+    for (const id of ids) {
+      ui.levelCard(x, y, w, LEVELS[id], settings.aiLevel === id, pick(id));
+      y += 66;
+    }
+  } else {
+    // 七档放不下一列，排成两列小卡片
+    const tw = (w - 10) / 2, th = 54;
+    ids.forEach((id, i) => {
+      ui.levelTile(x + (i % 2) * (tw + 10), y + Math.floor(i / 2) * (th + 10), tw, th, LEVELS[id], settings.aiLevel === id, pick(id));
     });
-    y += 66;
+    y += Math.ceil(ids.length / 2) * (th + 10);
   }
 
   y += 8;

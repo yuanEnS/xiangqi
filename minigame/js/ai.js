@@ -9,6 +9,15 @@ const LEVELS = {
   hard: { name: '大师', desc: '全力计算，限时 2.5 秒', maxDepth: 20, timeMs: 2500, noise: 0 },
 };
 
+// 网页版另有四档更强的电脑（web/xq-engine.js，在 Web Worker 里按时间搜索）。
+// 小游戏没有这个引擎，不显示这几档（见 xiangqi-app.js 里的 ENGINE_URL）。
+const PRO_LEVELS = {
+  king: { name: '棋王', desc: '每步最多 5 秒', timeMs: 5000, pro: true },
+  sage: { name: '棋圣', desc: '每步最多 10 秒', timeMs: 10000, pro: true },
+  god: { name: '棋神', desc: '每步最多 20 秒', timeMs: 20000, pro: true },
+  immortal: { name: '棋仙', desc: '每步最多 40 秒', timeMs: 40000, pro: true },
+};
+
 const VALUE = { K: 10000, R: 600, C: 300, N: 280, B: 120, A: 120, P: 40 };
 const MATE = 100000;
 
@@ -273,4 +282,4 @@ function findBestMove(board, side, levelId) {
   return { from: [best.fr, best.fc], to: [best.tr, best.tc], score: best.score, depth: depthDone, nodes: search.nodes };
 }
 
-module.exports = { LEVELS, findBestMove };
+module.exports = { LEVELS, PRO_LEVELS, findBestMove };
